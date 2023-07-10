@@ -1,0 +1,115 @@
+name: Release Obsidian plugin
+
+on:
+  push:
+    branches:
+      - master
+
+env:
+  NODE_VERSION: "18.x"
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0 # entire history is needed for the changelog
+
+      - name: Read manifest
+        run: |
+          echo "PLUGIN_ID=$(cat manifest.json | jq -r '.id')" >> $GITHUB_ENV
+          echo "PLUGIN_NAME=$(cat manifest.json | jq -r '.name')" >> $GITHUB_ENV
+          echo "PLUGIN_VERSION=$(cat manifest.json | jq -r '.version')" >> $GITHUB_ENV
+          echo "TAG_NAME=$(cat manifest.json | jq -r '.version')" >> $GITHUB_ENV
+
+      # check if tag exists and fail if not [force-release] in commit message
+      - name: Check if tag exists
+        id: check_tag
+        if: "!contains(github.event.head_commit.message, '[force-release]')"
+        run: |
+          git fetch --tags &> /dev/null
+          if git rev-parse ${{ env.TAG_NAME }} >/dev/null 2>&1; then
+              echo "Tag ${{ env.TAG_NAME }} already exists; Use [force-release] to skip check."
+              exit 1
+          else
+              echo "Will create tag ${{ env.TAG_NAME }} on release."
+              echo "PUSH_TAG=true" >> $GITHUB_ENV
+          fi
+
+
+      - uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+
+      - name: Cache node modules
+        uses: actions/cache@v3
+        with:
+          path: node_modules
+          key: node_modules-${{hashFiles('package-lock.json')}}
+          restore-keys: node_modules- # Take any latest cache if failed to find it for current lock file
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build
+        id: build
+        run: npm run build
+
+      - name: Generate changelog
+        id: changelog
+        uses: orhun/git-cliff-action@v2
+        with:
+          config: cliff.toml
+          args: --verbose --tag ${{ env.TAG_NAME }}
+        env:
+          OUTPUT: CHANGELOG.md
+
+
+      - name: Commit and push changelog
+        run: |
+          if ! git diff --quiet CHANGELOG.md; then
+            git config --local user.name "Github Actions"
+            git config --local user.email "actions@github.com"
+            git add CHANGELOG.md
+            git commit -m "Update CHANGELOG.md"
+            git push
+          else
+            echo "No changes to CHANGELOG.md"
+          fi
+
+      - name: Create tag and push
+        if: env.PUSH_TAG == 'true'
+        run: |
+          git config --local user.name "Github Actions"
+          git config --local user.email "actions@github.com"
+          git commit --allow-empty -m "Release ${{ env.TAG_NAME }}"
+          git tag ${{ env.TAG_NAME }}
+          git push
+          git push origin ${{ env.TAG_NAME }}
+
+      - name: Generate latest changes
+        id: changes
+        uses: orhun/git-cliff-action@v2
+        with:
+          config: cliff.toml
+          args: --verbose --latest --strip header
+        env:
+          OUTPUT: "CHANGELOG.md"
+          
+      - name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ env.TAG_NAME }}
+          name: ${{ env.TAG_NAME }}
+          body: ${{ steps.changes.outputs.content }}
+          draft: false
+          prerelease: false
+          fail_on_unmatched_files: true
+          files: |
+            main.js
+            styles.css
+            manifest.json

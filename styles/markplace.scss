@@ -1,0 +1,15 @@
+.markplace-modal {
+
+    &.markplace-error {
+        h2 {
+            color: var(--text-error);
+        }
+
+
+        .markplace-error-details {
+        }
+
+    }
+
+}
+
