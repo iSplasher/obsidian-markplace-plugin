@@ -1,8 +1,5 @@
-/*
-
-This CSS file will be included with your plugin, and
-available in the app when your plugin is enabled.
-
-If your plugin does not need CSS, delete this file.
-
-*/
+/* styles/markplace.scss */
+.markplace-modal.markplace-error h2 {
+  color: var(--text-error);
+}
+/*# sourceMappingURL=data:application/json;base64,ewogICJ2ZXJzaW9uIjogMywKICAic291cmNlcyI6IFsic3R5bGVzL21hcmtwbGFjZS5zY3NzIl0sCiAgInNvdXJjZXNDb250ZW50IjogWyIubWFya3BsYWNlLW1vZGFsIHtcblxuICAgICYubWFya3BsYWNlLWVycm9yIHtcbiAgICAgICAgaDIge1xuICAgICAgICAgICAgY29sb3I6IHZhcigtLXRleHQtZXJyb3IpO1xuICAgICAgICB9XG5cblxuICAgICAgICAubWFya3BsYWNlLWVycm9yLWRldGFpbHMge1xuICAgICAgICB9XG5cbiAgICB9XG5cbn1cblxuIl0sCiAgIm1hcHBpbmdzIjogIjtBQUdRO0FBQ0k7OyIsCiAgIm5hbWVzIjogW10KfQo= */
