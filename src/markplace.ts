@@ -184,7 +184,7 @@ export default class MarkPlace {
 					const right = content.slice(block.contentEnd);
 
 					const sep = block.singleLine() ? "" : "\n";
-					content = left + sep + "### [[HELLO WORLD]]" + sep + right;
+					content = left + sep + "<%+ '## test' %>" + sep + right;
 				}
 
 				return content;
