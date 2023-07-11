@@ -2,6 +2,7 @@ import { TFile, Vault } from "obsidian";
 
 import { setupConstant, teardownConstant } from "../tests/utils";
 import Cache from "./cache";
+import { Block } from "./parser/parser";
 
 beforeEach(() => {
 	const c = setupConstant({});
@@ -101,7 +102,7 @@ describe("cache initialization and reading and writing", () => {
 				version: "1.0.0",
 				blocks: {
 					test: {
-						__test__: "content",
+						__test__: ["content"],
 					},
 				},
 			};
@@ -125,7 +126,7 @@ describe("cache initialization and reading and writing", () => {
 				version: "1.0.0",
 				blocks: {
 					test: {
-						original: "content",
+						history: ["content"],
 					},
 				},
 			};
@@ -162,7 +163,7 @@ describe("cache initialization and reading and writing", () => {
 			version: "1.0.0",
 			blocks: {
 				test: {
-					original: "content",
+					history: ["content"],
 				},
 			},
 		};
@@ -183,5 +184,105 @@ describe("cache initialization and reading and writing", () => {
 		expect(written).toEqual(
 			`${FILE_HEADER}${JSON.stringify(d, null, 4)}${FILE_FOOTER}`
 		);
+	});
+});
+
+describe("cache block caching", () => {
+	const vault = new Vault();
+
+	(vault.read as jest.Mock).mockReturnValue("");
+
+	let block: Block;
+
+	beforeEach(() => {
+		block = new Block(
+			{
+				start: 0,
+				end: 0,
+				content: "start",
+				outerContent: "start",
+				escapes: [],
+			},
+			0,
+			0,
+			{
+				start: 0,
+				end: 0,
+				content: "end",
+				outerContent: "end",
+				escapes: [],
+			},
+			0,
+			0,
+			"block content"
+		);
+	});
+
+	test("a block can be cached successfully", async () => {
+		const cache = new Cache(vault, "test");
+
+		const r = await cache.cacheBlocks("test", [block]);
+
+		expect(r).toMatchObject({
+			"__normalized__/test:start": {
+				history: ["block content"],
+			},
+		});
+	});
+
+	test("duplicate block ids fails", async () => {
+		const cache = new Cache(vault, "test");
+
+		const r = await cache.cacheBlocks("test", [block, block]);
+
+		expect(r).toBeEmptyObject();
+	});
+
+	test("can merge history", async () => {
+		const cache = new Cache(vault, "test");
+
+		let written = "";
+
+		(cache.vault.process as jest.Mock).mockImplementation((path, cb) => {
+			written = cb("");
+			return written;
+		});
+
+		await cache.cacheBlocks("test", [block]);
+
+		block.content = "block content 2";
+
+		const r = await cache.cacheBlocks("test", [block]);
+
+		expect(r["__normalized__/test:start"].history).toEqual([
+			"block content",
+			"block content 2",
+		]);
+	});
+
+	test("only merges history if changed", async () => {
+		const cache = new Cache(vault, "test");
+
+		let written = "";
+
+		(cache.vault.process as jest.Mock).mockImplementation((path, cb) => {
+			written = cb("");
+			return written;
+		});
+
+		await cache.cacheBlocks("test", [block]);
+
+		block.content = "block content 2";
+		await cache.cacheBlocks("test", [block]);
+
+		block.content = "block content";
+		await cache.cacheBlocks("test", [block]);
+		const r = await cache.cacheBlocks("test", [block]);
+
+		expect(r["__normalized__/test:start"].history).toEqual([
+			"block content",
+			"block content 2",
+			"block content",
+		]);
 	});
 });

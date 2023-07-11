@@ -173,9 +173,13 @@ export default class MarkPlace {
 				.map((b) => b.content)
 				.join("%%\n");
 
+			const blocks = [...parsed.blocks.values()];
+
+			await this.cache.cacheBlocks(currentFile.path, blocks);
+
 			await this.app.vault.process(currentFile, (d) => {
 				let content = d;
-				for (const block of parsed.blocks.values()) {
+				for (const block of blocks) {
 					const left = content.slice(0, block.contentStart);
 					const right = content.slice(block.contentEnd);
 

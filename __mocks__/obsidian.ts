@@ -108,3 +108,7 @@ export class PluginSettingTab {
 export function normalizePath(path: string) {
 	return "__normalized__/" + path;
 }
+
+export function debounce(fn: any, ...args: any[]) {
+	return fn;
+}

@@ -1,6 +1,7 @@
-import { normalizePath, TFile, Vault } from "obsidian";
+import { debounce, normalizePath, TFile, Vault } from "obsidian";
 
 import { constant } from "./constants";
+import { Block } from "./parser/parser";
 import { MarkPlaceError } from "./utils/error";
 import logger from "./utils/logger";
 
@@ -24,14 +25,15 @@ enum CACHE_VERSION {
 
 const LATEST_CACHE_VERSION = CACHE_VERSION.V1;
 
+const MAX_BLOCK_HISTORY = 10;
+
+interface CacheDataBlock {
+	history: string[]; // history of original content
+}
+
 type CacheData = {
 	version: CACHE_VERSION;
-	blocks: Record<
-		string,
-		{
-			original: string;
-		}
-	>;
+	blocks: Record<string, CacheDataBlock>;
 };
 
 export default class Cache {
@@ -40,6 +42,8 @@ export default class Cache {
 	private data: CacheData;
 	private loading: boolean;
 	private loaded: boolean;
+
+	private commit: (...args: Parameters<Cache["commitImmediate"]>) => void;
 
 	constructor(public vault: Vault, private _path: string) {
 		this.path = _path;
@@ -54,6 +58,8 @@ export default class Cache {
 			version: LATEST_CACHE_VERSION,
 			blocks: {},
 		};
+
+		this.commit = debounce(this.commitImmediate.bind(this), 100);
 	}
 
 	get path() {
@@ -74,6 +80,72 @@ export default class Cache {
 
 	get normalizedPath() {
 		return this._normalizedPath;
+	}
+
+	async cacheBlocks(name: string, blocks: Block[]) {
+		const cachedBlocks: CacheData["blocks"] = {};
+
+		if (await this.init()) {
+			const normName = normalizePath(name);
+			const basename = normName.split("/").pop() ?? "";
+			const keys = new Set<string>();
+
+			for (const block of blocks) {
+				const key = this.getBlockKey(normName, block);
+
+				// duplicate block ids
+				if (keys.has(key)) {
+					logger.warnNotice(
+						`Duplicate block id '${key}' detected in the note ${basename}.`,
+						" Please make sure that all block ids are unique to allow caching to work properly."
+					);
+
+					// rmeove block from cache
+					delete cachedBlocks[key];
+
+					continue;
+				}
+
+				cachedBlocks[key] = this.stageBlock(key, block);
+				keys.add(key);
+			}
+
+			Object.assign(this.data.blocks, cachedBlocks);
+
+			this.commit();
+		}
+
+		return cachedBlocks;
+	}
+
+	private stageBlock(key: string, block: Block) {
+		const d: CacheDataBlock = {
+			history: [block.content],
+		};
+
+		// merge
+		if (this.data.blocks[key]) {
+			const prev = this.data.blocks[key].history;
+			const prevLatest = prev[prev.length - 1];
+			if (block.content !== prevLatest) {
+				d.history = [...prev, block.content];
+			} else {
+				d.history = prev;
+			}
+
+			// only allows a certain amount of history
+			if (d.history.length > MAX_BLOCK_HISTORY) {
+				d.history = d.history.slice(
+					d.history.length - MAX_BLOCK_HISTORY
+				);
+			}
+		}
+
+		return d;
+	}
+
+	private getBlockKey(name: string, block: Block) {
+		return `${name}:${block.startTag.content.trim()}`;
 	}
 
 	private onSettingsChanged(
@@ -225,7 +297,10 @@ export default class Cache {
 					Object.values(parsed.blocks).every((block: any) => {
 						if (typeof block === "object") {
 							return [
-								typeof block?.original === "string",
+								Array.isArray(block?.history) &&
+									block?.history.every(
+										(s: any) => typeof s === "string"
+									),
 								// ... more checks here
 							].every(Boolean);
 						}
@@ -247,7 +322,7 @@ export default class Cache {
 		return undefined;
 	}
 
-	private async commit() {
+	private async commitImmediate() {
 		this.loaded = true; // We can assume that the cache is loaded if we are committing
 		if (await this.init()) {
 			const file = this.vault.getAbstractFileByPath(

@@ -119,9 +119,12 @@ type TagLocation = {
 	escapes: CharacterPosition[]; // position from tag start
 };
 
-class Block {
+export class Block {
 	contentStart: CharacterPosition;
 	contentEnd: CharacterPosition;
+	originalContent: string;
+
+	private rendered: boolean;
 
 	constructor(
 		public startTag: TagLocation,
@@ -133,8 +136,10 @@ class Block {
 		public content: string,
 		private legacy?: Block
 	) {
+		this.originalContent = content;
 		this.contentStart = startTag.end + 1;
 		this.contentEnd = endTag.start - 1;
+		this.rendered = false;
 	}
 
 	diff(content: string) {
@@ -153,6 +158,18 @@ class Block {
 
 	singleLine() {
 		return this.startTagLineNumber === this.endTagLineNumber;
+	}
+
+	hasRendered() {
+		return this.rendered;
+	}
+
+	render() {
+		if (!this.rendered) {
+			this.rendered = true;
+		}
+
+		return this.rendered;
 	}
 }
 
