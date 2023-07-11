@@ -370,7 +370,7 @@ describe("Block parsing", () => {
 
 		p.update({ content: content2 });
 
-		expect(p.blocks.size).toBe(0);
+		expect(p.blockCount()).toBe(0);
 		expect(p.isDirty()).toBe(false);
 	});
 });
@@ -385,5 +385,16 @@ describe("Parser utilities", () => {
 		const lineNumber = p.getLineNumberAtPosition(7);
 
 		expect(lineNumber).toBe(5);
+	});
+
+	test("correct line numbers gets returned", async () => {
+		const content = "\n3 \n \n \n3\n3\n\n";
+
+		const p = new Parsed({ content });
+
+		// @ts-ignore
+		const lineNumbers = p.getLineNumberAtPositions([10, 1, 8]);
+
+		expect(lineNumbers).toEqual([6, 2, 5]);
 	});
 });

@@ -152,16 +152,28 @@ export default class MarkPlace {
 
 		// file no longer active
 		// TODO: what about renames?
-		if (oldFile && oldFile.path !== currentFile.path) {
+		if (!currentFile || (oldFile && oldFile.path !== currentFile.path)) {
 			logger.warn("File no longer active");
 			return;
 		}
 
-		if (parsed.changed()) {
+		if (parsed.hasChanged()) {
 			const content = [...parsed.blocks.values()]
 				.map((b) => b.content)
 				.join("%%\n");
-			logger.debugNotice(parsed.blockCount(), "\n", content);
+
+			await this.app.vault.process(currentFile, (d) => {
+				let content = d;
+				for (const block of parsed.blocks.values()) {
+					const left = content.slice(0, block.contentStart);
+					const right = content.slice(block.contentEnd);
+
+					const sep = block.singleLine() ? "" : "\n";
+					content = left + sep + "### [[HELLO WORLD]]" + sep + right;
+				}
+
+				return content;
+			});
 		}
 	}
 }

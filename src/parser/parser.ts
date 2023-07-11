@@ -1,5 +1,6 @@
 import { ParserLocationError } from "../utils/error";
 import logger from "../utils/logger";
+import { argsort } from "../utils/misc";
 
 export interface ParserContent {
 	name?: string;
@@ -119,17 +120,39 @@ type TagLocation = {
 };
 
 class Block {
+	contentStart: CharacterPosition;
+	contentEnd: CharacterPosition;
+
 	constructor(
-		public startBlock: TagLocation,
-		public startBlockType: TAG_TYPE,
-		public endBlock: TagLocation,
-		public endBlockType: TAG_TYPE,
-		public content: string
-	) {}
+		public startTag: TagLocation,
+		public startTagType: TAG_TYPE,
+		public startTagLineNumber: LineNumber,
+		public endTag: TagLocation,
+		public endTagType: TAG_TYPE,
+		public endTagLineNumber: LineNumber,
+		public content: string,
+		private legacy?: Block
+	) {
+		this.contentStart = startTag.end + 1;
+		this.contentEnd = endTag.start - 1;
+	}
 
 	diff(content: string) {
 		// TODO: better diffing
 		return content.trim() !== this.content.trim();
+	}
+
+	isNew() {
+		// if we have a legacy block, check if different from legacy
+		if (this.legacy && !this.legacy.diff(this.content)) {
+			return false;
+		}
+
+		return true;
+	}
+
+	singleLine() {
+		return this.startTagLineNumber === this.endTagLineNumber;
 	}
 }
 
@@ -157,10 +180,8 @@ export class Parsed {
 		this._dirty = true;
 	}
 
-	changed() {
-		const c = this._changed;
-		this._changed = false;
-		return c;
+	hasChanged() {
+		return this._changed;
 	}
 
 	update(content?: ParserContent) {
@@ -181,12 +202,25 @@ export class Parsed {
 		return content.trim() !== this.content.content.trim();
 	}
 
+	blocksDiff(blocks: Block[]) {
+		let idx = 0;
+		for (const block of this.blocks.values()) {
+			const otherBlock = blocks?.[idx];
+			if (!otherBlock || block.diff(otherBlock.content)) {
+				return true;
+			}
+			idx++;
+		}
+	}
+
 	private scan() {
 		if (!this._dirty) return;
 
+		const currentBlocks = [...this.blocks.values()];
 		const blocks: Parsed["blocks"] = new Map();
 		const locations = this.getTagLocations(this.content.content);
 
+		let blockIndex = -1;
 		let startTag = locations.shift();
 
 		while (startTag) {
@@ -212,12 +246,22 @@ export class Parsed {
 				endBlock.start
 			);
 
+			// get legacy block if exists
+			blockIndex++;
+			const legacy = currentBlocks?.[blockIndex];
+
+			const [startTagLineNumber, endTagLineNumber] =
+				this.getLineNumberAtPositions([startTag.start, endBlock.start]);
+
 			const block = new Block(
 				startTag,
 				startTagType,
+				startTagLineNumber,
 				endBlock,
 				endBlockType,
-				content
+				endTagLineNumber,
+				content,
+				legacy
 			);
 
 			blocks.set(startTag.start, block);
@@ -225,9 +269,21 @@ export class Parsed {
 			startTag = locations.shift();
 		}
 
-		this.blocks = blocks;
 		this._dirty = false;
-		this._changed = true;
+
+		// check if changed
+		if ([...blocks.values()].some((b) => b.isNew())) {
+			this._changed = true;
+			this.blocks = blocks;
+		} else {
+			// edge case
+			if (!blocks.size && this.blocks.size) {
+				this._changed = true;
+				this.blocks = blocks;
+			} else {
+				this._changed = false;
+			}
+		}
 	}
 
 	private getTagLocations(text: string) {
@@ -407,19 +463,31 @@ export class Parsed {
 	}
 
 	private getLineNumberAtPosition(pos: CharacterPosition) {
+		return this.getLineNumberAtPositions([pos])[0];
+	}
+
+	private getLineNumberAtPositions(positions: CharacterPosition[]) {
+		const indices = argsort(positions);
+
 		const lines = this.content.content.split("\n");
+		const lineNumbers: LineNumber[] = Array(positions.length).fill(1);
+
 		let line = lines.shift() as string;
 		let total = 0;
 		let lineCount: LineNumber = 1;
 
-		while (total < pos && lines.length) {
-			line = lines.shift() as string;
-			total += line.length + 1; // +1 for newline
-			lineCount++;
-		}
+		for (const posIndex of indices) {
+			while (total < positions[posIndex] && lines.length) {
+				line = lines.shift() as string;
+				total += line.length + 1; // +1 for newline
+				lineCount++;
+			}
 
-		return lineCount;
+			lineNumbers[posIndex] = lineCount;
+		}
+		return lineNumbers;
 	}
+
 	// Move to error class? idk
 	private missingStartTagError(tag: TagLocation) {
 		return ParserLocationError.notice(
