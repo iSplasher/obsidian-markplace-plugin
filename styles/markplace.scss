@@ -6,10 +6,38 @@
         }
 
 
-        .markplace-error-details {
-        }
+        .markplace-error-details {}
 
     }
 
 }
 
+.markplace-indent {
+    padding-inline-start: 1rem;
+}
+
+.markplace-settings {
+
+    @mixin markplace-control {
+        display: flex;
+        justify-content: space-around;
+        padding: 0;
+
+        * {
+            flex: 1;
+        }
+    }
+
+
+    .markplace-wide-control {
+        @include markplace-control;
+        width: 100%;
+    }
+
+    .markplace-expanded-control {
+        @include markplace-control;
+        flex: 1;
+    }
+
+
+}
