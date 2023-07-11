@@ -79,7 +79,7 @@ export default class MarkPlaceSettingTab extends PluginSettingTab {
 		cacheDesc.append(
 			"MarkPlace is able to cache the original content of blocks.",
 			document.createElement("br"),
-			"This allows you to still work with the original content after a block has rendered.",
+			"This allows you to still work with the original content even after a block has rendered.",
 			document.createElement("br"),
 			"The cache is stored to a file in a JSON format, and is not meant to be edited by hand.",
 			document.createElement("br"),
@@ -92,14 +92,17 @@ export default class MarkPlaceSettingTab extends PluginSettingTab {
 			toggle
 				.setValue(this.plugin.settings.cache)
 				.onChange(async (value: MarkPlacePluginSettings["cache"]) => {
-					this.plugin.settings.cache = value;
-					await this.plugin.saveSettings();
+					await this.plugin.saveSettings({
+						cache: value,
+					});
 				});
 		});
 
 		const cacheFileDesc = document.createDocumentFragment();
 		cacheFileDesc.append(
-			"The path must point to a location inside your vault. If the file does not exist, it will be created with a .json extension."
+			"The path must point to a location inside your vault. If the file does not exist, it will be created.",
+			cacheFileDesc.createEl("br"),
+			"The file extension can be anything, but defaults to .md"
 		);
 		new Setting(containerEl)
 			.setName("Cache file location")
@@ -107,11 +110,12 @@ export default class MarkPlaceSettingTab extends PluginSettingTab {
 			.setDisabled(true);
 
 		const cacheFileEl = new Setting(containerEl).addText((text) => {
-			text.setPlaceholder("Example: path/to/cache/file.json")
+			text.setPlaceholder("Example: path/to/_cache.md")
 				.setValue(this.plugin.settings.cachePath)
 				.onChange(async (value) => {
-					this.plugin.settings.cachePath = value;
-					await this.plugin.saveSettings();
+					await this.plugin.saveSettings({
+						cachePath: value,
+					});
 				});
 		});
 		cacheFileEl.controlEl.addClass(CLASSES.settingsWideControl);
@@ -135,8 +139,9 @@ export default class MarkPlaceSettingTab extends PluginSettingTab {
 								? value
 								: "none";
 
-							this.plugin.settings.showError = v;
-							await this.plugin.saveSettings();
+							await this.plugin.saveSettings({
+								showError: v,
+							});
 						}
 					);
 			});
@@ -160,8 +165,9 @@ export default class MarkPlaceSettingTab extends PluginSettingTab {
 						async (
 							value: MarkPlacePluginSettings["liveRendering"]
 						) => {
-							this.plugin.settings.liveRendering = value;
-							await this.plugin.saveSettings();
+							await this.plugin.saveSettings({
+								liveRendering: value,
+							});
 						}
 					);
 			});

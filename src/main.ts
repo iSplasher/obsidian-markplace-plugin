@@ -8,6 +8,7 @@ import MarkPlaceSettingTab, {
 	MarkPlacePluginSettings,
 } from "./components/settings";
 import { constant } from "./constants";
+import Emitter from "./events";
 import MarkPlace from "./markplace";
 import { MarkPlaceError } from "./utils/error";
 
@@ -16,7 +17,9 @@ export default class MarkPlacePlugin extends Plugin {
 	markplace?: MarkPlace;
 
 	async onload() {
+		constant.loaded = true;
 		constant.app = this.app;
+		constant.events = new Emitter();
 
 		await this.loadSettings();
 
@@ -95,6 +98,7 @@ export default class MarkPlacePlugin extends Plugin {
 	}
 
 	onunload() {
+		constant.loaded = false;
 		this.markplace?.onunload?.();
 		this.markplace = undefined;
 	}
@@ -109,8 +113,14 @@ export default class MarkPlacePlugin extends Plugin {
 		constant.settings = this.settings;
 	}
 
-	async saveSettings() {
-		await this.saveData(this.settings);
+	async saveSettings(settings?: Partial<MarkPlacePluginSettings>) {
+		const oldSettings = Object.assign({}, this.settings);
+		this.settings = Object.assign(this.settings, settings);
 		constant.settings = this.settings;
+		await this.saveData(this.settings);
+
+		if (constant?.events) {
+			constant.events.emit("settingsChanged", this.settings, oldSettings);
+		}
 	}
 }

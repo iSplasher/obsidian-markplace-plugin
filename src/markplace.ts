@@ -1,4 +1,3 @@
-import debounce from "lodash/debounce";
 import {
 	App,
 	Editor,
@@ -8,38 +7,47 @@ import {
 	View,
 } from "obsidian";
 
+import Cache from "./cache";
+import { constant } from "./constants";
 import Parser, { Parsed, ParserContent } from "./parser/parser";
 import logger from "./utils/logger";
+import { loadedDebounce } from "./utils/misc";
 
 import type MarkPlacePlugin from "./main";
 export default class MarkPlace {
 	plugin: MarkPlacePlugin;
 	app: App;
 	parser: Parser;
+	cache: Cache;
+	loaded: boolean;
 
 	parseContent: (
 		...args: Parameters<MarkPlace["parseContentImmediate"]>
 	) => void;
 
 	constructor(plugin: MarkPlacePlugin) {
+		constant.loaded = true;
+		this.loaded = true;
 		this.plugin = plugin;
 		this.app = plugin.app;
 		this.parser = new Parser();
+		this.cache = new Cache(this.app.vault, this.plugin.settings.cachePath);
 
-		this.parseContent = debounce(
+		this.parseContent = loadedDebounce(
 			this.parseContentImmediate.bind(this),
 			100
 		);
 	}
 
 	async onload() {
+		this.loaded = true;
 		await this.registerEvents();
 	}
 
 	async registerEvents() {
 		this.plugin.registerEvent(
 			this.app.vault.on("create", () => {
-				logger.debugNotice("a new file has entered the arena");
+				logger.devNotice("a new file has entered the arena");
 			})
 		);
 
@@ -56,7 +64,10 @@ export default class MarkPlace {
 		);
 	}
 
-	onunload() {}
+	onunload() {
+		this.loaded = false;
+		constant.loaded = false;
+	}
 
 	async onChange(editor: Editor, info: MarkdownView | MarkdownFileInfo) {
 		if (info instanceof View) {

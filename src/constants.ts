@@ -1,6 +1,7 @@
 import { App } from "obsidian";
 
 import type { MarkPlacePluginSettings } from "./components/settings";
+import type Emitter from "./events";
 
 export const CLASSES = {
 	modal: "markplace-modal",
@@ -19,7 +20,9 @@ export const CLASSES = {
 };
 
 export class constant {
+	static loaded = false;
 	static app?: App;
+	static events?: Emitter;
 	static settings?: MarkPlacePluginSettings;
 	static isDev =
 		typeof process !== "undefined" &&

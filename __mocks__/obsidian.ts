@@ -60,10 +60,18 @@ export class TFolder extends TAbstractFile {
 	}
 }
 
+export class DataAdapter {
+	exists = jest.fn();
+}
+
 export class Vault extends EventEmitter {
-	getFiles() {
-		return [];
-	}
+	getAbstractFileByPath = jest.fn();
+	adapter = new DataAdapter();
+	create = jest.fn();
+	read = jest.fn();
+	getFiles = jest.fn();
+	process = jest.fn();
+
 	trigger(name: string, ...data: any[]): void {
 		this.emit(name, ...data);
 	}
@@ -77,6 +85,10 @@ export class Notice {
 	constructor(message: string, timeout: number) {}
 }
 
+export class App {
+	constructor() {}
+}
+
 export class Modal {
 	app: any;
 
@@ -87,4 +99,12 @@ export class Modal {
 	onOpen() {}
 
 	onClose() {}
+}
+
+export class PluginSettingTab {
+	constructor(app: App, plugin: any) {}
+}
+
+export function normalizePath(path: string) {
+	return "__normalized__/" + path;
 }
