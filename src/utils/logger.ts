@@ -1,23 +1,24 @@
-import MarkPlaceNotice from "src/components/notice";
-import { constant } from "src/constants";
-
+import MarkPlaceNotice from "../components/notice";
+import { constant } from "../constants";
 import { MarkPlaceConsoleError, MarkPlaceError } from "./error";
 
+type Msg = string | any;
+
 export default class logger {
-	static debug(message: string | any, ...messages: (string | any)[]): void {
+	static debug(message: Msg, ...messages: Msg[]): void {
 		if (!constant.isDev) return;
 		console.debug(message, ...messages);
 	}
 
-	static warn(message: string, ...messages: string[]): void {
+	static warn(message: Msg, ...messages: Msg[]): void {
 		console.warn(message, ...messages);
 	}
 
-	static log(message: string, ...messages: string[]): void {
+	static log(message: Msg, ...messages: Msg[]): void {
 		console.log(message, ...messages);
 	}
 
-	static error(message: string | Error, ...messages: string[]): void {
+	static error(message: Msg | Error, ...messages: Msg[]): void {
 		console.error(message, ...messages);
 	}
 
@@ -37,11 +38,19 @@ export default class logger {
 		new MarkPlaceNotice(message, timeout);
 	}
 
-	static debugNotice(message: string | any, ...messages: (string | any)[]) {
+	static debugNotice(message: Msg, ...messages: Msg[]) {
 		if (constant.isDev) {
-			let m = JSON.stringify(message);
+			let m =
+				typeof message === "string" ? message : JSON.stringify(message);
 			if (messages.length) {
-				m = m + " " + messages.map((m) => JSON.stringify(m)).join(" ");
+				m =
+					m +
+					" " +
+					messages
+						.map((m) =>
+							typeof m === "string" ? m : JSON.stringify(m)
+						)
+						.join(" ");
 			}
 			new MarkPlaceNotice(m, 2500);
 		}

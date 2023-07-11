@@ -1,5 +1,6 @@
 import { Notice } from "obsidian";
-import logger from "src/utils/logger";
+
+import logger from "../utils/logger";
 
 import type { MarkPlaceError } from "src/utils/error";
 export function formatNoticeMessage(brief: string, details: string) {

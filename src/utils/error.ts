@@ -1,11 +1,11 @@
-import ErrorModal from "src/components/modals/error";
+import { CustomError } from "ts-custom-error";
+
+import ErrorModal from "../components/modals/error";
 import {
 	formatNoticeMessage,
 	MarkPlaceErrorNotice,
-} from "src/components/notice";
-import { constant } from "src/constants";
-import { CustomError } from "ts-custom-error";
-
+} from "../components/notice";
+import { constant } from "../constants";
 import logger from "./logger";
 
 export class MarkPlaceConsoleError extends CustomError {
@@ -49,5 +49,41 @@ export class MarkPlaceError extends MarkPlaceConsoleError {
 		}
 
 		return this;
+	}
+}
+
+export class ParserConsoleError extends MarkPlaceConsoleError {}
+
+export class ParserError extends MarkPlaceError {}
+
+// @ts-ignore
+export class ParserLocationError extends ParserError {
+	contentName: string;
+	line: number;
+
+	constructor(
+		brief: string,
+		line: number,
+		contentName?: string,
+		...messages: string[]
+	) {
+		const unknown = "[unknown]";
+		super(
+			brief,
+			...messages,
+			`at line ${line} in ${contentName ?? unknown}`
+		);
+		this.line = line;
+		this.contentName = contentName ?? unknown;
+	}
+
+	static notice(
+		brief: string,
+		line: number,
+		contentName?: string,
+		...messages: string[]
+	) {
+		const err = new this(brief, line, contentName, ...messages);
+		return err._notice();
 	}
 }
