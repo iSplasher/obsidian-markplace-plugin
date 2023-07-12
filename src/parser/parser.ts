@@ -125,15 +125,16 @@ type TagLocation = {
 };
 
 export class Block {
+	endTagLineNumber: LineNumber;
+
 	contentStart: CharacterPosition;
 	contentEnd: CharacterPosition;
-	originalContent: string;
 
 	preContent: string;
 	postContent: string;
 
+	_content: string;
 	private rendered: boolean;
-	private validToSource: boolean;
 
 	constructor(
 		public startTag: TagLocation,
@@ -142,24 +143,41 @@ export class Block {
 		public sepTag: TagLocation | null,
 		public endTag: TagLocation,
 		public endTagType: TAG_TYPE,
-		public endTagLineNumber: LineNumber,
-		public content: string,
+		readonly originalContent: string,
 		private legacy?: Block
 	) {
-		this.originalContent = content;
+		this._content = originalContent;
+		this.endTagLineNumber = 0;
 		this.contentStart = 0;
 		this.contentEnd = 0;
 		this.rendered = false;
-		this.validToSource = true;
 
 		this.preContent = "";
 		this.postContent = "";
 		this.processContent();
 	}
 
+	get content() {
+		return this._content;
+	}
+
+	set content(content: string) {
+		this._content = content;
+		this.processContent();
+	}
+
 	private processContent() {
 		this.contentStart = this.startTag.end;
-		this.contentEnd = this.endTag.start - 1;
+
+		// update positions
+		const newEndTag = { ...this.endTag };
+		newEndTag.start = this.startTag.end + this.content.length;
+		newEndTag.end = newEndTag.start + this.endTag.outerContent.length;
+
+		this.endTag = newEndTag;
+		this.contentEnd = newEndTag.start - 1;
+		this.endTagLineNumber =
+			this.startTagLineNumber + this.content.split("\n").length - 1;
 
 		if (!this.sepTag) {
 			this.preContent = this.content;
@@ -195,8 +213,8 @@ export class Block {
 		return this.rendered;
 	}
 
-	sourceValid() {
-		return this.validToSource;
+	modified() {
+		return this.content !== this.originalContent;
 	}
 
 	mapToContentPosition(position: CharacterPosition) {
@@ -246,16 +264,8 @@ export class Block {
 
 		const newContent = preSepContent + sepContent + postSepContent;
 
-		// update end tag positions
-		const newEndTag = { ...this.endTag };
-		newEndTag.start += sepContent.length;
-		newEndTag.end += sepContent.length;
-
-		this.content = newContent;
+		this._content = newContent;
 		this.sepTag = sepTag;
-		this.endTag = newEndTag;
-		this.endTagLineNumber += sepContent.split("\n").length - 1;
-		this.validToSource = false;
 
 		this.processContent();
 	}
@@ -283,17 +293,7 @@ export class Block {
 
 		const newContent = preSepEndContent + renderContent;
 
-		// update end tag positions
-		const newEndTag = { ...this.endTag };
-		newEndTag.start = this.sepTag.end + renderContent.length;
-		newEndTag.end = newEndTag.start + this.endTag.outerContent.length;
-
-		this.endTagLineNumber =
-			this.startTagLineNumber + newContent.split("\n").length - 1;
-
-		this.content = newContent;
-		this.endTag = newEndTag;
-		this.validToSource = false;
+		this._content = newContent;
 
 		this.processContent();
 
@@ -424,8 +424,9 @@ export class Parsed {
 			blockIndex++;
 			const legacy = currentBlocks?.[blockIndex];
 
-			const [startTagLineNumber, endTagLineNumber] =
-				this.getLineNumberAtPositions([startTag.start, endTag.start]);
+			const [startTagLineNumber] = this.getLineNumberAtPositions([
+				startTag.start,
+			]);
 
 			const block = new Block(
 				startTag,
@@ -434,7 +435,6 @@ export class Parsed {
 				sepTag,
 				endTag,
 				endTagType,
-				endTagLineNumber,
 				content,
 				legacy
 			);

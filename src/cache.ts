@@ -119,16 +119,18 @@ export default class Cache {
 	}
 
 	private stageBlock(key: string, block: Block) {
+		const blockContent = block.preContent.trim();
+
 		const d: CacheDataBlock = {
-			history: [block.preContent],
+			history: [blockContent],
 		};
 
 		// merge
 		if (this.data.blocks[key]) {
 			const prev = this.data.blocks[key].history;
 			const prevLatest = prev[prev.length - 1];
-			if (block.preContent !== prevLatest) {
-				d.history = [...prev, block.preContent];
+			if (blockContent !== prevLatest) {
+				d.history = [...prev, blockContent];
 			} else {
 				d.history = prev;
 			}

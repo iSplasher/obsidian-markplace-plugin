@@ -474,7 +474,6 @@ describe("Block rendering", () => {
 				escapes: [],
 			},
 			4,
-			content.split("\n").length,
 			content
 		);
 	});
@@ -483,7 +482,7 @@ describe("Block rendering", () => {
 		const sepOuter = `%%{ ${SEPARATOR_TOKEN} }%%`;
 
 		test("when on multiple lines", async () => {
-			expect(block.sourceValid()).toBe(true);
+			expect(block.modified()).toBe(false);
 			expect(block.preContent).toBe(block.content);
 			expect(block.postContent).toBe("");
 
@@ -491,7 +490,7 @@ describe("Block rendering", () => {
 			block.addSeparatorTag();
 
 			expect(block.sepTag).not.toBeNull();
-			expect(block.sourceValid()).toBe(false);
+			expect(block.modified()).toBe(true);
 
 			const startOuter = block.startTag.outerContent;
 			const endOuter = block.endTag.outerContent;
@@ -546,13 +545,9 @@ describe("Block rendering", () => {
 		});
 
 		test("when on single line", async () => {
-			expect(block.sourceValid()).toBe(true);
+			expect(block.modified()).toBe(false);
 
 			block.content = "content";
-			block.endTag.start = block.startTag.end + block.content.length;
-			block.endTag.end =
-				block.endTag.start + block.endTag.outerContent.length;
-			block.endTagLineNumber = block.startTagLineNumber;
 
 			// @ts-ignore
 			block.addSeparatorTag();
@@ -671,14 +666,10 @@ describe("Block rendering", () => {
 
 		test("when on single line", async () => {
 			block.content = "content";
-			block.endTag.start = block.startTag.end + block.content.length;
-			block.endTag.end =
-				block.endTag.start + block.endTag.outerContent.length;
-			block.endTagLineNumber = block.startTagLineNumber;
 
 			const render = "rendered content";
 
-			expect(block.preContent).toBe("\ncontent\n");
+			expect(block.preContent).toBe("content");
 			expect(block.postContent).toBe("");
 
 			const padStart = "";

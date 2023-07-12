@@ -195,32 +195,57 @@ describe("cache block caching", () => {
 	let block: Block;
 
 	beforeEach(() => {
+		const startContent = "start";
+		const startOuterContent = `%%{ ${startContent} }%%`;
+		const endContent = "end";
+		const endOuterContent = `%%{ ${endContent} }%%`;
+
+		const content = "block content";
+
 		block = new Block(
 			{
 				start: 0,
-				end: 0,
-				content: "start",
-				outerContent: "start",
+				end: startOuterContent.length,
+				content: startContent,
+				outerContent: startOuterContent,
 				escapes: [],
 			},
 			0,
-			0,
+			1,
 			null,
 			{
-				start: 0,
-				end: 0,
-				content: "end",
-				outerContent: "end",
+				start: startOuterContent.length + content.length,
+				end:
+					startOuterContent.length +
+					content.length +
+					endOuterContent.length,
+				content: endContent,
+				outerContent: endOuterContent,
 				escapes: [],
 			},
-			0,
-			0,
-			"block content"
+			4,
+			content
 		);
 	});
 
 	test("a block can be cached successfully", async () => {
 		const cache = new Cache(vault, "test");
+
+		const r = await cache.cacheBlocks("test", [block]);
+
+		expect(r).toMatchObject({
+			"__normalized__/test:start": {
+				history: ["block content"],
+			},
+		});
+
+		// @ts-ignore
+		expect(r).toMatchObject(cache.data.blocks);
+	});
+
+	test("a rendered block can be cached successfully", async () => {
+		const cache = new Cache(vault, "test");
+		block.render("new content");
 
 		const r = await cache.cacheBlocks("test", [block]);
 
@@ -252,7 +277,6 @@ describe("cache block caching", () => {
 		await cache.cacheBlocks("test", [block]);
 
 		block.content = "block content 2";
-
 		const r = await cache.cacheBlocks("test", [block]);
 
 		expect(r["__normalized__/test:start"].history).toEqual([
@@ -285,5 +309,27 @@ describe("cache block caching", () => {
 			"block content 2",
 			"block content",
 		]);
+	});
+
+	test("can merge history after render", async () => {
+		const cache = new Cache(vault, "test");
+
+		const r = await cache.cacheBlocks("test", [block]);
+
+		expect(r).toMatchObject({
+			"__normalized__/test:start": {
+				history: ["block content"],
+			},
+		});
+
+		block.render("new content");
+
+		const r2 = await cache.cacheBlocks("test", [block]);
+
+		expect(r2).toMatchObject({
+			"__normalized__/test:start": {
+				history: ["block content"], // pre content is the same
+			},
+		});
 	});
 });
