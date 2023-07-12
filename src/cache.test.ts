@@ -205,6 +205,7 @@ describe("cache block caching", () => {
 			},
 			0,
 			0,
+			null,
 			{
 				start: 0,
 				end: 0,

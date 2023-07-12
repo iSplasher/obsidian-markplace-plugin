@@ -24,6 +24,7 @@ enum TAG_TYPE {
 	START,
 	START_IMMEDIATE,
 	START_DELAYED,
+	SEPARATOR,
 	END,
 }
 
@@ -115,6 +116,8 @@ type CharacterPosition = number;
 
 type TagLocation = {
 	start: CharacterPosition;
+	// NOTE: this is the position AFTER the last character of the tag
+	// this is to make it easier to get the content of the tag, e.g.: content.slice(start, end)
 	end: CharacterPosition;
 	content: string;
 	outerContent: string;
@@ -126,12 +129,17 @@ export class Block {
 	contentEnd: CharacterPosition;
 	originalContent: string;
 
+	preContent: string;
+	postContent: string;
+
 	private rendered: boolean;
+	private validToSource: boolean;
 
 	constructor(
 		public startTag: TagLocation,
 		public startTagType: TAG_TYPE,
 		public startTagLineNumber: LineNumber,
+		public sepTag: TagLocation | null,
 		public endTag: TagLocation,
 		public endTagType: TAG_TYPE,
 		public endTagLineNumber: LineNumber,
@@ -139,9 +147,30 @@ export class Block {
 		private legacy?: Block
 	) {
 		this.originalContent = content;
-		this.contentStart = startTag.end + 1;
-		this.contentEnd = endTag.start - 1;
+		this.contentStart = 0;
+		this.contentEnd = 0;
 		this.rendered = false;
+		this.validToSource = true;
+
+		this.preContent = "";
+		this.postContent = "";
+		this.processContent();
+	}
+
+	private processContent() {
+		this.contentStart = this.startTag.end;
+		this.contentEnd = this.endTag.start - 1;
+
+		if (!this.sepTag) {
+			this.preContent = this.content;
+			this.postContent = "";
+		} else {
+			const sepTagContentStart = this.sepTag.start - this.startTag.end;
+			const sepTagContentEnd = this.sepTag.end - this.startTag.end;
+
+			this.preContent = this.content.slice(0, sepTagContentStart);
+			this.postContent = this.content.slice(sepTagContentEnd);
+		}
 	}
 
 	diff(content: string) {
@@ -166,14 +195,125 @@ export class Block {
 		return this.rendered;
 	}
 
+	sourceValid() {
+		return this.validToSource;
+	}
 
+	mapToContentPosition(position: CharacterPosition) {
+		return position - this.contentStart;
+	}
 
-	render() {
-		if (!this.rendered) {
-			this.rendered = true;
+	mapFromContentPosition(position: CharacterPosition) {
+		return this.contentStart + position;
+	}
+
+	private addSeparatorTag() {
+		const content = ` ${SEPARATOR_TOKEN} `;
+
+		const outerContent = `${PARSER_TOKEN.tagStart}${content}${PARSER_TOKEN.tagEnd}`;
+
+		let padStart = "";
+		let padEnd = "";
+
+		if (this.singleLine()) {
+			padStart = " ";
+			padEnd = " ";
+		} else {
+			padStart = "\n";
+			padEnd = "\n";
 		}
 
-		return this.rendered;
+		// which tag to use as reference
+		const tagStart = this.endTag.start;
+
+		// start and end of sep tag
+		const start = tagStart + padStart.length;
+		const end = start + outerContent.length;
+
+		const sepTag: TagLocation = {
+			start,
+			end,
+			content,
+			outerContent,
+			escapes: [],
+		};
+
+		const sepContent = padStart + outerContent + padEnd;
+
+		const tagContentStart = this.mapToContentPosition(tagStart);
+		const preSepContent = this.content.slice(0, tagContentStart);
+		const postSepContent = this.content.slice(tagContentStart);
+
+		const newContent = preSepContent + sepContent + postSepContent;
+
+		// update end tag positions
+		const newEndTag = { ...this.endTag };
+		newEndTag.start += sepContent.length;
+		newEndTag.end += sepContent.length;
+
+		this.content = newContent;
+		this.sepTag = sepTag;
+		this.endTag = newEndTag;
+		this.endTagLineNumber += sepContent.split("\n").length - 1;
+		this.validToSource = false;
+
+		this.processContent();
+	}
+
+	private addAfterSeparatorTag(content: string) {
+		if (!this.sepTag) {
+			return false;
+		}
+
+		let padStart = "";
+		let padEnd = "";
+
+		if (this.singleLine()) {
+			padStart = "";
+			padEnd = "";
+		} else {
+			padStart = "\n";
+			padEnd = "\n";
+		}
+
+		const renderContent = padStart + content + padEnd;
+
+		const sepContentEnd = this.mapToContentPosition(this.sepTag.end);
+		const preSepEndContent = this.content.slice(0, sepContentEnd);
+
+		const newContent = preSepEndContent + renderContent;
+
+		// update end tag positions
+		const newEndTag = { ...this.endTag };
+		newEndTag.start = this.sepTag.end + renderContent.length;
+		newEndTag.end = newEndTag.start + this.endTag.outerContent.length;
+
+		this.endTagLineNumber =
+			this.startTagLineNumber + newContent.split("\n").length - 1;
+
+		this.content = newContent;
+		this.endTag = newEndTag;
+		this.validToSource = false;
+
+		this.processContent();
+
+		return true;
+	}
+
+	render(content: string) {
+		if (!this.rendered) {
+			if (!this.sepTag) {
+				this.addSeparatorTag();
+			}
+
+			if (this.addAfterSeparatorTag(content)) {
+				this.rendered = true;
+
+				return true;
+			}
+		}
+
+		return false;
 	}
 }
 
@@ -251,20 +391,33 @@ export class Parsed {
 				throw this.missingStartTagError(startTag);
 			}
 
-			const endBlock = locations.shift();
-			if (!endBlock) {
+			let endTag = locations.shift();
+			if (!endTag) {
 				throw this.missingEndTagError(startTag);
 			}
 
-			const endBlockType = this.getTagType(endBlock);
+			let sepTag: TagLocation | null = null;
 
-			if (endBlockType !== TAG_TYPE.END) {
+			let endTagType = this.getTagType(endTag);
+
+			if (endTagType === TAG_TYPE.SEPARATOR) {
+				sepTag = endTag;
+				endTag = locations.shift();
+				if (!endTag) {
+					throw this.missingEndTagError(startTag);
+				}
+				endTagType = this.getTagType(endTag);
+			}
+
+			if (sepTag && endTagType === TAG_TYPE.SEPARATOR) {
+				throw this.multipleSepTagError(sepTag);
+			} else if (endTagType !== TAG_TYPE.END) {
 				throw this.missingEndTagError(startTag);
 			}
 
 			const content = this.content.content.slice(
 				startTag.end,
-				endBlock.start
+				endTag.start
 			);
 
 			// get legacy block if exists
@@ -272,14 +425,15 @@ export class Parsed {
 			const legacy = currentBlocks?.[blockIndex];
 
 			const [startTagLineNumber, endTagLineNumber] =
-				this.getLineNumberAtPositions([startTag.start, endBlock.start]);
+				this.getLineNumberAtPositions([startTag.start, endTag.start]);
 
 			const block = new Block(
 				startTag,
 				startTagType,
 				startTagLineNumber,
-				endBlock,
-				endBlockType,
+				sepTag,
+				endTag,
+				endTagType,
 				endTagLineNumber,
 				content,
 				legacy
@@ -425,7 +579,9 @@ export class Parsed {
 	private getTagType(tag: TagLocation) {
 		let t: TAG_TYPE | undefined = undefined;
 
-		if (tag.content.trim().toLowerCase() === END_TOKEN) {
+		if (tag.content.trim().toLowerCase() === SEPARATOR_TOKEN) {
+			t = TAG_TYPE.SEPARATOR;
+		} else if (tag.content.trim().toLowerCase() === END_TOKEN) {
 			const modifierCharEnd = tag.outerContent
 				.slice(
 					PARSER_TOKEN.tagStart.length,
@@ -531,6 +687,14 @@ export class Parsed {
 				` ${END_TOKEN} ` +
 				PARSER_TOKEN.tagEnd +
 				"?"
+		);
+	}
+
+	private multipleSepTagError(tag: TagLocation) {
+		return ParserLocationError.notice(
+			"Multiple separator tags in block are not allowed",
+			this.getLineNumberAtPosition(tag.start),
+			this.content.name
 		);
 	}
 }

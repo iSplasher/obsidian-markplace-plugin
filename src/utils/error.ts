@@ -71,7 +71,7 @@ export class ParserLocationError extends ParserError {
 		super(
 			brief,
 			...messages,
-			`at line ${line} in ${contentName ?? unknown}`
+			`[at line ${line} in ${contentName ?? unknown}]`
 		);
 		this.line = line;
 		this.contentName = contentName ?? unknown;

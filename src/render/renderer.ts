@@ -32,7 +32,7 @@ export default class MarkPlaceRenderer {
 		console.log(view.containerEl);
 
 		await constant.app?.vault.process(currentFile, (d) => {
-			let content = d;
+			const content = d;
 			for (const block of blocks) {
 				if (block.hasRendered()) {
 					logger.devNotice(
@@ -44,12 +44,11 @@ export default class MarkPlaceRenderer {
 				const left = content.slice(0, block.contentStart);
 				const right = content.slice(block.contentEnd);
 
-				logger.devNotice(block.content);
 				const sep = block.singleLine() ? "" : "\n";
 				try {
-					content =
-						left + sep + `${eval(block.content)}` + sep + right;
-
+					logger.devNotice(
+						left + sep + `${eval(block.content)}` + sep + right
+					);
 					block.render();
 				} catch (e) {
 					logger.warnNotice("Execution error", e?.message);
