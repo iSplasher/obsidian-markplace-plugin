@@ -1,6 +1,6 @@
-import { ParserLocationError } from "../utils/error";
-import logger from "../utils/logger";
-import { argsort } from "../utils/misc";
+import { ParserLocationError } from '../utils/error';
+import logger from '../utils/logger';
+import { argsort } from '../utils/misc';
 
 export interface ParserContent {
 	name?: string;
@@ -8,12 +8,14 @@ export interface ParserContent {
 }
 
 const PARSER_TOKEN = {
-	blockStart: "%%{",
-	blockEnd: "}%%",
+	tagStart: "%%{",
+	tagEnd: "}%%",
 	escape: "\\",
 };
 
 const END_TOKEN = "end";
+
+const SEPARATOR_TOKEN = "---------------------------";
 
 const IGNORE_COMMENT_TOKEN = "" as string; // empty disables this atm
 const IGNORE_COMMENT_TERMINATOR = "\n"; // ignore until next line
@@ -163,6 +165,8 @@ export class Block {
 	hasRendered() {
 		return this.rendered;
 	}
+
+
 
 	render() {
 		if (!this.rendered) {
@@ -359,9 +363,7 @@ export class Parsed {
 			}
 
 			const token =
-				tag.start === -1
-					? PARSER_TOKEN.blockStart
-					: PARSER_TOKEN.blockEnd;
+				tag.start === -1 ? PARSER_TOKEN.tagStart : PARSER_TOKEN.tagEnd;
 
 			if (token.startsWith(c)) {
 				const s = text.slice(n, n + token.length);
@@ -399,8 +401,8 @@ export class Parsed {
 					if (line === startLine) {
 						tag.end = n + token.length;
 						tag.content = text.slice(
-							tag.start + PARSER_TOKEN.blockStart.length,
-							tag.end - PARSER_TOKEN.blockEnd.length
+							tag.start + PARSER_TOKEN.tagStart.length,
+							tag.end - PARSER_TOKEN.tagEnd.length
 						);
 						tag.outerContent = text.slice(tag.start, tag.end);
 						tags.push(tag);
@@ -426,8 +428,8 @@ export class Parsed {
 		if (tag.content.trim().toLowerCase() === END_TOKEN) {
 			const modifierCharEnd = tag.outerContent
 				.slice(
-					PARSER_TOKEN.blockStart.length,
-					PARSER_TOKEN.blockStart.length + 1
+					PARSER_TOKEN.tagStart.length,
+					PARSER_TOKEN.tagStart.length + 1
 				)
 				.trim();
 
@@ -439,15 +441,15 @@ export class Parsed {
 			const tokens = Object.values(TAG_MODIFIER_TOKEN);
 			const modifierCharStart = tag.outerContent
 				.slice(
-					PARSER_TOKEN.blockStart.length,
-					PARSER_TOKEN.blockStart.length + 1
+					PARSER_TOKEN.tagStart.length,
+					PARSER_TOKEN.tagStart.length + 1
 				)
 				.trim();
 
 			// only if modifier is valid
 
 			if (tokens.every((x) => x.startsWith(modifierCharStart))) {
-				const l = PARSER_TOKEN.blockStart.length;
+				const l = PARSER_TOKEN.tagStart.length;
 				for (const [k, v] of Object.entries(TAG_MODIFIER_TOKEN)) {
 					const s = tag.outerContent.slice(l, l + v.length);
 					if (s === v) {
@@ -512,9 +514,9 @@ export class Parsed {
 			this.getLineNumberAtPosition(tag.start),
 			this.content.name,
 			"Did you forget to start the block with " +
-				PARSER_TOKEN.blockStart +
+				PARSER_TOKEN.tagStart +
 				" Your Block Text " +
-				PARSER_TOKEN.blockEnd +
+				PARSER_TOKEN.tagEnd +
 				"?"
 		);
 	}
@@ -525,9 +527,9 @@ export class Parsed {
 			this.getLineNumberAtPosition(tag.start),
 			this.content.name,
 			"Did you forget to close the block with " +
-				PARSER_TOKEN.blockStart +
+				PARSER_TOKEN.tagStart +
 				` ${END_TOKEN} ` +
-				PARSER_TOKEN.blockEnd +
+				PARSER_TOKEN.tagEnd +
 				"?"
 		);
 	}
