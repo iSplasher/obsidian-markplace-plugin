@@ -1,9 +1,10 @@
 import { MarkdownView, Vault } from "obsidian";
 
 import { constant } from "../constants";
+import Evaluator from "../evaluator/evaluator";
 import { Block, Parsed } from "../parser/parser";
-import { RenderError } from "../utils/error";
 import logger from "../utils/logger";
+import Generator from "./generator";
 
 export default class MarkPlaceRenderer {
 	constructor(public vault: Vault) {
@@ -32,8 +33,10 @@ export default class MarkPlaceRenderer {
 		console.log(view.contentEl);
 		console.log(view.containerEl);
 
+		const evaluator = new Evaluator();
+
 		for (const block of blocks) {
-			await this.renderBlock(block);
+			await this.renderBlock(block, evaluator);
 		}
 
 		await this.vault.process(currentFile, (originalContent) => {
@@ -48,15 +51,6 @@ export default class MarkPlaceRenderer {
 				const block = blocks[++idx];
 
 				if (block) {
-					if (!block.hasRendered()) {
-						RenderError.notice(
-							`Block[${block.startTag.content.trim()}] has not rendered yet.`,
-							" This shouldn't happen..."
-						);
-
-						return originalContent;
-					}
-
 					currentOldStart = block.originalStartTag.start;
 				}
 
@@ -80,16 +74,22 @@ export default class MarkPlaceRenderer {
 		});
 	}
 
-	async renderBlock(block: Block) {
+	async renderBlock(block: Block, evaluator: Evaluator) {
 		if (block.hasRendered()) {
 			return block;
 		}
 
 		// reuse if therer's a legacy
-		if (!block.isNew() && block?.legacy?.hasRendered()) {
-			block.render(block.legacy.postContent);
+		if (block.hasLegacyRender()) {
+			block.setRender(true);
 		} else {
-			block.render(`Block[${block.startTag.content.trim()}]`);
+			try {
+				const generator = new Generator();
+				await evaluator.run(generator, block.preContent);
+				block.render(generator.compile());
+			} catch (e) {
+				logger.debugNotice("Error evaluating code", e?.message);
+			}
 		}
 
 		return block;
