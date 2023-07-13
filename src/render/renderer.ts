@@ -24,14 +24,11 @@ export default class MarkPlaceRenderer {
 	}
 
 	async onRender(view: MarkdownView, parsed: Parsed) {
-		logger.infoNotice(view?.containerEl.innerText);
+		logger.devNotice("Rendering", view.file.path);
 
 		const currentFile = view.file;
 
 		const blocks = [...parsed.blocks.values()];
-
-		console.log(view.contentEl);
-		console.log(view.containerEl);
 
 		const evaluator = new Evaluator();
 
@@ -39,7 +36,21 @@ export default class MarkPlaceRenderer {
 			await this.renderBlock(block, evaluator);
 		}
 
-		await this.vault.process(currentFile, (originalContent) => {
+		logger.devNotice("Rendered", blocks.length, "blocks");
+
+		await this.vault.process(currentFile, (fileContent) => {
+			const originalContent =
+				parsed.content.content === fileContent
+					? fileContent
+					: parsed.content.content;
+
+			if (originalContent !== fileContent) {
+				logger.warnNotice(
+					"Content has changed since last render.",
+					"Some changes may be lost."
+				);
+			}
+
 			let newContent = "";
 			let prevBlock: Block | null = null;
 			let idx = -1;
@@ -55,10 +66,11 @@ export default class MarkPlaceRenderer {
 				}
 
 				// add the content between the previous block and the current block
-				newContent += originalContent.slice(
+				const betweenContent = originalContent.slice(
 					prevOldEnd,
 					currentOldStart
 				);
+				newContent += betweenContent;
 				// add the content of the current block
 				if (block) {
 					newContent += block.outerContent;
@@ -70,6 +82,8 @@ export default class MarkPlaceRenderer {
 			if (constant?.events) {
 				constant.events.emit("renderContent", currentFile, newContent);
 			}
+
+			logger.devNotice("Wrote content to", currentFile.path);
 			return newContent;
 		});
 	}

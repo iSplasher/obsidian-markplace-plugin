@@ -1,8 +1,8 @@
-import { MarkdownView, TFile, Vault } from "obsidian";
+import { MarkdownView, TFile, Vault } from 'obsidian';
 
-import { Parsed } from "../parser/parser";
-import { dedent } from "../utils/misc";
-import MarkPlaceRenderer from "./renderer";
+import { Parsed } from '../parser/parser';
+import { dedent } from '../utils/misc';
+import MarkPlaceRenderer from './renderer';
 
 const SEPARATOR_TOKEN = "---";
 
@@ -28,7 +28,7 @@ describe("Rendering blocks", () => {
 
 	test("can render block", async () => {
 		parsed.update({
-			content: "%%{ start }%%\ncontent\n%%{ end }%%",
+			content: "%%{ start }%%\n mp.text('Block[start]') \n%%{ end }%%",
 		});
 		let written = "";
 
@@ -52,7 +52,7 @@ describe("Rendering blocks", () => {
 	test("can stitch simple content", async () => {
 		const originalContent = dedent`
         %%{ start }%%
-        \ncontent\n
+        mp.text('Block[start]')
         %%{ end }%%
         `;
 
@@ -162,7 +162,7 @@ describe("Rendering blocks", () => {
         leading
 
         %%{ start }%%
-        \ncontent\n
+        mp.text('Block[start]')
 
 
         %%{ end }%%
@@ -171,7 +171,7 @@ describe("Rendering blocks", () => {
 
         %%{ start 2 }%%
 
-        \ncontent\n
+        mp.text('Block[start 2]')
 
 
         %%{ end }%%
@@ -224,14 +224,14 @@ describe("Rendering blocks", () => {
 
 		const originalContent2 = dedent`
         %%{ start }%%
-        \ncontent\n
+        mp.text('Block[start]')
 
 
         %%{ end }%%
 
         %%{ start 2 }%%
 
-        \ncontent\n
+        mp.text('Block[start 2]')
 
 
         %%{ end }%%
@@ -251,7 +251,7 @@ describe("Rendering blocks", () => {
         leading
 
         %%{ start }%%
-        \ncontent\n
+        mp.text('Block[start]')
 
 		%%{ ${SEPARATOR_TOKEN} }%%
 
@@ -263,7 +263,7 @@ describe("Rendering blocks", () => {
 
         %%{ start 2 }%%
 
-        \ncontent\n
+        mp.text('Block[start 2]')
 
 		%%{ ${SEPARATOR_TOKEN} }%%
 
@@ -303,7 +303,7 @@ describe("Rendering blocks", () => {
 
 		const originalContent2 = dedent`
         %%{ start }%%
-        \ncontent\n
+        mp.text('Block[start]')
 
 		%%{ ${SEPARATOR_TOKEN} }%%
 
@@ -313,7 +313,7 @@ describe("Rendering blocks", () => {
         
         %%{ start 2 }%%
 
-        \ncontent\n
+        mp.text('Block[start 2]')
 
 		%%{ ${SEPARATOR_TOKEN} }%%
 
@@ -335,7 +335,7 @@ describe("Rendering blocks", () => {
 		const originalContent3 = dedent`
         %%{ start }%%
         
-		new precontent
+		mp.text('new precontent')
 
 		%%{ ${SEPARATOR_TOKEN} }%%
 
@@ -345,7 +345,7 @@ describe("Rendering blocks", () => {
         
         %%{ start 2 }%%
 
-        \ncontent\n
+        mp.text('Block[start 2]')
 
 		%%{ ${SEPARATOR_TOKEN} }%%
 
@@ -375,7 +375,7 @@ describe("Rendering blocks", () => {
 		const originalContent4 = dedent`
         %%{ start }%%
         
-		new precontent
+		mp.text('new precontent')
 
 		%%{ ${SEPARATOR_TOKEN} }%%
 
@@ -385,7 +385,7 @@ describe("Rendering blocks", () => {
         
         %%{ start 2 }%%
 
-        \ncontent\n
+        mp.text('Block[start 2]')
 
 		%%{ ${SEPARATOR_TOKEN} }%%
 

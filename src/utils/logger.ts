@@ -6,25 +6,31 @@ type Msg = string | any;
 
 const NOTICE_LOG_TIMEOUT = 10000;
 export default class logger {
+	private static call(func: (...args: any[]) => void, ...args: any[]) {
+		if (process.env.NODE_ENV !== "test") {
+			func(...args);
+		}
+	}
+
 	static debug(message: Msg, ...messages: Msg[]): void {
 		if (!constant.isDev) return;
-		console.debug(message, ...messages);
+		this.call(console.debug, message, ...messages);
 	}
 
 	static warn(message: Msg, ...messages: Msg[]): void {
-		console.warn(message, ...messages);
+		this.call(console.warn, message, ...messages);
 	}
 
 	static log(message: Msg, ...messages: Msg[]): void {
-		console.log(message, ...messages);
+		this.call(console.log, message, ...messages);
 	}
 
 	static info(message: Msg, ...messages: Msg[]): void {
-		console.log(message, ...messages);
+		this.call(console.log, message, ...messages);
 	}
 
 	static error(message: Msg | Error, ...messages: Msg[]): void {
-		console.error(message, ...messages);
+		this.call(console.error, message, ...messages);
 	}
 
 	static exception(e: Error | MarkPlaceConsoleError, notice = true): void {
@@ -32,10 +38,10 @@ export default class logger {
 			if (notice) {
 				e._notice();
 			} else {
-				console.error(e);
+				this.error(e);
 			}
 		} else {
-			console.error(e);
+			this.error(e);
 		}
 	}
 

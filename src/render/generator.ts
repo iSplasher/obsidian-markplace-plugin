@@ -1,9 +1,11 @@
 export default class Generator {
+	content: string;
+
 	constructor() {
 		this.content = "generated";
 	}
 
-	test(text: string) {
+	text(text: string) {
 		this.content = text;
 	}
 
