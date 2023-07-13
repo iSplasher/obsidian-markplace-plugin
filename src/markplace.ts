@@ -27,7 +27,7 @@ export default class MarkPlace {
 		this.app = plugin.app;
 		this.parser = new Parser();
 		this.cache = new Cache(this.app.vault, this.plugin.settings.cachePath);
-		this.renderer = new MarkPlaceRenderer();
+		this.renderer = new MarkPlaceRenderer(this.app.vault);
 		this.processor = new MarkPlaceProcessor(
 			this.app,
 			this.parser,

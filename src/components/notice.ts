@@ -3,7 +3,8 @@ import { Notice } from "obsidian";
 import logger from "../utils/logger";
 
 import type { MarkPlaceError } from "src/utils/error";
-export function formatNoticeMessage(brief: string, details: string) {
+export function formatNoticeMessage(brief: string, details?: string) {
+	details = details ?? "";
 	return `${brief}\n  ------\n  ${details.replace(
 		/\n ?/g,
 		"\n  "

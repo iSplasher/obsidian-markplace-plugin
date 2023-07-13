@@ -87,3 +87,7 @@ export class ParserLocationError extends ParserError {
 		return err._notice();
 	}
 }
+
+export class RenderConsoleError extends MarkPlaceConsoleError {}
+
+export class RenderError extends MarkPlaceError {}

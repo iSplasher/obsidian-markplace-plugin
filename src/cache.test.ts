@@ -276,7 +276,11 @@ describe("cache block caching", () => {
 
 		await cache.cacheBlocks("test", [block]);
 
-		block.content = "block content 2";
+		// @ts-ignore
+		block._content = "block content 2";
+		// @ts-ignore
+		block.processContent();
+
 		const r = await cache.cacheBlocks("test", [block]);
 
 		expect(r["__normalized__/test:start"].history).toEqual([
@@ -297,10 +301,18 @@ describe("cache block caching", () => {
 
 		await cache.cacheBlocks("test", [block]);
 
-		block.content = "block content 2";
+		// @ts-ignore
+		block._content = "block content 2";
+		// @ts-ignore
+		block.processContent();
+
 		await cache.cacheBlocks("test", [block]);
 
-		block.content = "block content";
+		// @ts-ignore
+		block._content = "block content";
+		// @ts-ignore
+		block.processContent();
+
 		await cache.cacheBlocks("test", [block]);
 		const r = await cache.cacheBlocks("test", [block]);
 

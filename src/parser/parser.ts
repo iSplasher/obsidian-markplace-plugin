@@ -15,7 +15,7 @@ const PARSER_TOKEN = {
 
 const END_TOKEN = "end";
 
-const SEPARATOR_TOKEN = "---------------------------";
+const SEPARATOR_TOKEN = "---";
 
 const IGNORE_COMMENT_TOKEN = "" as string; // empty disables this atm
 const IGNORE_COMMENT_TERMINATOR = "\n"; // ignore until next line
@@ -34,13 +34,14 @@ const TAG_MODIFIER_TOKEN = {
 	[TAG_TYPE.START_DELAYED]: "*",
 };
 
+// LRU cache
 class ParsedCache {
 	private MAX_CHARS = 1000 * 5; // 5 files with 1k characters each
 
 	private index: Map<
 		string,
 		{
-			lineCount: number;
+			charCount: number;
 			parsed: Parsed;
 		}
 	>;
@@ -53,16 +54,24 @@ class ParsedCache {
 
 	cache(content: ParserContent) {
 		if (content.name) {
-			if (!this.index.has(content.name)) {
-				const lineCount = content.content.length;
+			const charCount = content.content.length;
 
+			if (!this.index.has(content.name)) {
 				const parsed = new Parsed(content);
 				this.index.set(content.name, {
-					lineCount,
+					charCount,
 					parsed,
 				});
 
-				this.charsCount += lineCount;
+				this.charsCount += charCount;
+			} else {
+				// update char count
+				const v = this.index.get(content.name);
+				if (v) {
+					this.charsCount -= v?.charCount;
+					this.charsCount += charCount;
+					v.charCount = charCount;
+				}
 			}
 
 			// refresh
@@ -90,8 +99,8 @@ class ParsedCache {
 		if (this.index.size < 2) return; // keep at least one entry
 		// Map keeps insertion order, so this will evict the oldest entry
 		const key = this.index.keys().next().value;
-		const lineCount = this.index.get(key)?.lineCount as number;
-		this.charsCount -= lineCount;
+		const charCount = this.index.get(key)?.charCount as number;
+		this.charsCount -= charCount;
 		this.index.delete(key);
 	}
 }
@@ -125,7 +134,12 @@ type TagLocation = {
 };
 
 export class Block {
+	startTag: TagLocation;
+	startTagLineNumber: LineNumber;
+	sepTag: TagLocation | null;
+	endTag: TagLocation;
 	endTagLineNumber: LineNumber;
+	readonly originalEndTagLineNumber: LineNumber;
 
 	contentStart: CharacterPosition;
 	contentEnd: CharacterPosition;
@@ -133,19 +147,23 @@ export class Block {
 	preContent: string;
 	postContent: string;
 
-	_content: string;
+	private _content: string;
 	private rendered: boolean;
 
 	constructor(
-		public startTag: TagLocation,
-		public startTagType: TAG_TYPE,
-		public startTagLineNumber: LineNumber,
-		public sepTag: TagLocation | null,
-		public endTag: TagLocation,
-		public endTagType: TAG_TYPE,
+		readonly originalStartTag: TagLocation,
+		readonly startTagType: TAG_TYPE,
+		readonly originalStartTagLineNumber: LineNumber,
+		readonly originalSepTag: TagLocation | null,
+		readonly originalEndTag: TagLocation,
+		readonly endTagType: TAG_TYPE,
 		readonly originalContent: string,
-		private legacy?: Block
+		readonly legacy?: Block
 	) {
+		this.startTag = originalStartTag;
+		this.startTagLineNumber = originalStartTagLineNumber;
+		this.sepTag = originalSepTag;
+		this.endTag = originalEndTag;
 		this._content = originalContent;
 		this.endTagLineNumber = 0;
 		this.contentStart = 0;
@@ -154,16 +172,26 @@ export class Block {
 
 		this.preContent = "";
 		this.postContent = "";
+
 		this.processContent();
+
+		this.originalEndTagLineNumber = this.endTagLineNumber;
 	}
 
+	// how many chars the content has changed to the original
+	get deltaPosition() {
+		return this.content.length - this.originalContent.length;
+	}
+
+	get outerContent() {
+		return (
+			this.startTag.outerContent + this.content + this.endTag.outerContent
+		);
+	}
+
+	// we deliberately don't implement a getter here
 	get content() {
 		return this._content;
-	}
-
-	set content(content: string) {
-		this._content = content;
-		this.processContent();
 	}
 
 	private processContent() {
@@ -191,14 +219,13 @@ export class Block {
 		}
 	}
 
-	diff(content: string) {
-		// TODO: better diffing
-		return content.trim() !== this.content.trim();
+	diff(preContent: string) {
+		return preContent.trim() !== this.preContent.trim();
 	}
 
 	isNew() {
 		// if we have a legacy block, check if different from legacy
-		if (this.legacy && !this.legacy.diff(this.content)) {
+		if (this.legacy && !this.legacy.diff(this.preContent)) {
 			return false;
 		}
 
@@ -211,6 +238,20 @@ export class Block {
 
 	hasRendered() {
 		return this.rendered;
+	}
+
+	hasLegacyRender() {
+		if (
+			!this.isNew() &&
+			this.legacy &&
+			(this.legacy.hasRendered() || this.legacy.hasLegacyRender())
+		) {
+			if (this.postContent.trim() === this.legacy.postContent.trim()) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	modified() {
@@ -300,6 +341,10 @@ export class Block {
 		return true;
 	}
 
+	setRender(rendered: boolean) {
+		this.rendered = rendered;
+	}
+
 	render(content: string) {
 		if (!this.rendered) {
 			if (!this.sepTag) {
@@ -307,8 +352,7 @@ export class Block {
 			}
 
 			if (this.addAfterSeparatorTag(content)) {
-				this.rendered = true;
-
+				this.setRender(true);
 				return true;
 			}
 		}
@@ -321,12 +365,16 @@ export class Parsed {
 	content: ParserContent;
 	blocks: Map<CharacterPosition, Block>;
 
+	private blocksCache: Map<string, Block>;
+
 	private _dirty = true;
 	private _changed = false;
 
 	constructor(content: ParserContent) {
 		this.content = content;
 		this.blocks = new Map();
+
+		this.blocksCache = new Map();
 	}
 
 	blockCount() {
@@ -343,6 +391,20 @@ export class Parsed {
 
 	hasChanged() {
 		return this._changed;
+	}
+
+	needsRender() {
+		if (this.hasChanged()) {
+			return true;
+		}
+
+		for (const block of this.blocks.values()) {
+			if (!block.hasLegacyRender() && !block.hasRendered()) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	update(content?: ParserContent) {
@@ -367,7 +429,7 @@ export class Parsed {
 		let idx = 0;
 		for (const block of this.blocks.values()) {
 			const otherBlock = blocks?.[idx];
-			if (!otherBlock || block.diff(otherBlock.content)) {
+			if (!otherBlock || block.diff(otherBlock.preContent)) {
 				return true;
 			}
 			idx++;
@@ -375,7 +437,11 @@ export class Parsed {
 	}
 
 	private scan() {
+		this._changed = false;
+
 		if (!this._dirty) return;
+
+		let legacyIdMismatch = false;
 
 		const currentBlocks = [...this.blocks.values()];
 		const blocks: Parsed["blocks"] = new Map();
@@ -400,6 +466,8 @@ export class Parsed {
 
 			let endTagType = this.getTagType(endTag);
 
+			const endTagContent = endTag.content.trim();
+
 			if (endTagType === TAG_TYPE.SEPARATOR) {
 				sepTag = endTag;
 				endTag = locations.shift();
@@ -407,6 +475,13 @@ export class Parsed {
 					throw this.missingEndTagError(startTag);
 				}
 				endTagType = this.getTagType(endTag);
+			} else if (
+				endTagContent.length >= 2 &&
+				(SEPARATOR_TOKEN.startsWith(endTagContent) ||
+					endTagContent.startsWith(SEPARATOR_TOKEN))
+			) {
+				// check if malformed sep tag
+				throw this.malformedSepTagError(endTag);
 			}
 
 			if (sepTag && endTagType === TAG_TYPE.SEPARATOR) {
@@ -420,9 +495,24 @@ export class Parsed {
 				endTag.start
 			);
 
-			// get legacy block if exists
+			// find legacy block if exists
 			blockIndex++;
-			const legacy = currentBlocks?.[blockIndex];
+			let legacy: Block | undefined = currentBlocks?.[blockIndex];
+
+			if (legacy) {
+				// if same index and same preContent, it might've just been moved or id changed
+				const preContent = sepTag
+					? content.slice(0, sepTag.start - startTag.end)
+					: content;
+				if (preContent.trim() !== legacy.preContent.trim()) {
+					legacy = undefined;
+				} else {
+					legacyIdMismatch = true;
+				}
+				// else, if can be found in cache with same id
+			} else if (this.blocksCache.has(startTag.content.trim())) {
+				legacy = this.blocksCache.get(startTag.content.trim());
+			}
 
 			const [startTagLineNumber] = this.getLineNumberAtPositions([
 				startTag.start,
@@ -449,16 +539,23 @@ export class Parsed {
 		// check if changed
 		if ([...blocks.values()].some((b) => b.isNew())) {
 			this._changed = true;
-			this.blocks = blocks;
 		} else {
 			// edge case
-			if (!blocks.size && this.blocks.size) {
+			if (blocks.size !== this.blocks.size) {
 				this._changed = true;
-				this.blocks = blocks;
 			} else {
 				this._changed = false;
 			}
 		}
+
+		if (this._changed || legacyIdMismatch) {
+			this.blocksCache = new Map();
+			for (const block of blocks.values()) {
+				this.blocksCache.set(block.startTag.content.trim(), block);
+			}
+		}
+
+		this.blocks = blocks;
 	}
 
 	private getTagLocations(text: string) {
@@ -648,7 +745,7 @@ export class Parsed {
 		const lineNumbers: LineNumber[] = Array(positions.length).fill(1);
 
 		let line = lines.shift() as string;
-		let total = 0;
+		let total = line.length;
 		let lineCount: LineNumber = 1;
 
 		for (const posIndex of indices) {
@@ -695,6 +792,16 @@ export class Parsed {
 			"Multiple separator tags in block are not allowed",
 			this.getLineNumberAtPosition(tag.start),
 			this.content.name
+		);
+	}
+
+	private malformedSepTagError(tag: TagLocation) {
+		return ParserLocationError.notice(
+			"Marlformed separator tag in block",
+			this.getLineNumberAtPosition(tag.start),
+			this.content.name,
+			"The separator tag should look like ",
+			` ${PARSER_TOKEN.tagStart} ${SEPARATOR_TOKEN} ${PARSER_TOKEN.tagEnd}`
 		);
 	}
 }

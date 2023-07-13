@@ -100,7 +100,13 @@ export default class MarkPlaceProcessor {
 			await this.cache.cacheBlocks(currentFile.path, blocks);
 
 			if (constant?.events) {
-				constant.events.emit("parsed", view, parsed);
+				constant.events.emit("parseChange", view, parsed);
+			}
+		}
+
+		if (parsed.needsRender()) {
+			if (constant?.events) {
+				constant.events.emit("renderRequest", view, parsed);
 			}
 		}
 	}

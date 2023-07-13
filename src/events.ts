@@ -1,5 +1,5 @@
 import EventEmitter from "eventemitter3";
-import { MarkdownView } from "obsidian";
+import { MarkdownView, TFile } from "obsidian";
 
 import type { MarkPlacePluginSettings } from "./components/settings";
 import type { Parsed } from "./parser/parser";
@@ -10,7 +10,9 @@ export interface EventMap {
 		oldSettings: MarkPlacePluginSettings
 	) => any;
 
-	parsed: (view: MarkdownView, parsed: Parsed) => any;
+	parseChange: (view: MarkdownView, parsed: Parsed) => any;
+	renderRequest: (view: MarkdownView, parsed: Parsed) => any;
+	renderContent: (file: TFile, content: string) => any;
 }
 
 export default class Emitter extends EventEmitter<EventMap> {}

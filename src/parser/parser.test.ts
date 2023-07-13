@@ -1,6 +1,7 @@
+import { dedent } from "../utils/misc";
 import { Block, Parsed } from "./parser";
 
-const SEPARATOR_TOKEN = "---------------------------";
+const SEPARATOR_TOKEN = "---";
 
 describe("Tag location parsing", () => {
 	test("simple tag is parsed", async () => {
@@ -273,6 +274,82 @@ describe("Block parsing", () => {
 		}
 	});
 
+	test("missing end tag with sep; correct linenumber", async () => {
+		const content = dedent`
+		# hello world
+		## hello world
+
+        %%{ test }%%
+
+		ok ok okasdas 
+
+		%%{ ${SEPARATOR_TOKEN} }%%
+
+		`;
+
+		const p = new Parsed({ content });
+
+		expect.assertions(2);
+		try {
+			// @ts-ignore
+			p.scan();
+		} catch (e) {
+			expect(e.message).toMatch("Missing end block tag");
+			expect(e.message).toMatch("at line 4");
+		}
+	});
+
+	test("malformed sep tag", async () => {
+		const content = `
+        %%{ hello world }%%
+        %%{ ----------- }%%
+        `;
+
+		const p = new Parsed({ content });
+
+		expect.assertions(1);
+		try {
+			// @ts-ignore
+			p.scan();
+		} catch (e) {
+			expect(e.message).toMatch("Marlformed separator tag");
+		}
+	});
+
+	test("malformed sep tag long", async () => {
+		const content = `
+        %%{ hello world }%%
+        %%{ ${SEPARATOR_TOKEN}${SEPARATOR_TOKEN} }%%
+        `;
+
+		const p = new Parsed({ content });
+
+		expect.assertions(1);
+		try {
+			// @ts-ignore
+			p.scan();
+		} catch (e) {
+			expect(e.message).toMatch("Marlformed separator tag");
+		}
+	});
+
+	test("malformed sep tag short", async () => {
+		const content = `
+        %%{ hello world }%%
+        %%{ ${SEPARATOR_TOKEN.slice(0, 2)} }%%
+        `;
+
+		const p = new Parsed({ content });
+
+		expect.assertions(1);
+		try {
+			// @ts-ignore
+			p.scan();
+		} catch (e) {
+			expect(e.message).toMatch("Marlformed separator tag");
+		}
+	});
+
 	test("allow only one sep tag", async () => {
 		const content = `
         %%{ hello world }%%
@@ -357,7 +434,7 @@ describe("Block parsing", () => {
 	});
 
 	test("block with sep is parsed", async () => {
-		const content = `
+		const content = dedent`
         %%{ hello world }%%
 
         content
@@ -372,16 +449,16 @@ describe("Block parsing", () => {
 		// @ts-ignore
 		p.scan();
 
+		const blocks = [...p.blocks.values()];
+
 		expect(p.blocks.size).toBe(1);
-		expect(p.blocks.get(9)?.content?.trim()).toBe(
-			`
+		expect(blocks?.[0]?.content.trim()).toBe(dedent`
 		content
 
 		%%{ ${SEPARATOR_TOKEN} }%%
-		`.trim()
-		);
-		expect(p.blocks.get(9)?.preContent?.trim()).toBe("content");
-		expect(p.blocks.get(9)?.postContent?.trim()).toBe("");
+		`);
+		expect(blocks?.[0]?.preContent?.trim()).toBe("content");
+		expect(blocks?.[0]?.postContent?.trim()).toBe("");
 	});
 
 	test("blocks are parsed", async () => {
@@ -439,6 +516,170 @@ describe("Block parsing", () => {
 		expect(p.blockCount()).toBe(0);
 		expect(p.isDirty()).toBe(false);
 	});
+
+	test("parsed won't reparse unchanged", async () => {
+		const content = `
+        %%{ hello world }%%
+
+        content
+        
+        %%{ end }%%
+        `;
+
+		const p = new Parsed({ content: "" });
+
+		expect(p.hasChanged()).toBe(false);
+
+		p.update({ content });
+
+		expect(p.diff(content)).toBe(false);
+		expect(p.hasChanged()).toBe(true);
+
+		const content2 = `
+        %%{ hello world }%%
+
+        content
+
+
+
+        
+        %%{ end }%%
+        `;
+
+		p.update({ content: content2 });
+
+		expect(p.diff(content)).toBe(true);
+		expect(p.isDirty()).toBe(false);
+		expect(p.hasChanged()).toBe(false);
+
+		const content3 = `
+        %%{ hello world }%%
+
+        content
+
+		
+		%%{ ${SEPARATOR_TOKEN} }%%
+        
+        %%{ end }%%
+        `;
+
+		p.update({ content: content3 });
+
+		expect(p.diff(content2)).toBe(true);
+		expect(p.isDirty()).toBe(false);
+		expect(p.hasChanged()).toBe(false);
+
+		const content4 = `
+        %%{ hello world 2 }%%
+
+        content
+
+		
+		%%{ ${SEPARATOR_TOKEN} }%%
+        
+        %%{ end }%%
+        `;
+
+		p.update({ content: content4 });
+
+		expect(p.diff(content2)).toBe(true);
+		expect(p.isDirty()).toBe(false);
+		expect(p.hasChanged()).toBe(false);
+
+		const content5 = `
+        %%{ hello world 1 }%%
+
+        content
+        
+        %%{ end }%%
+
+        %%{ hello world 2 }%%
+
+        content
+
+		
+		%%{ ${SEPARATOR_TOKEN} }%%
+        
+        %%{ end }%%
+        `;
+
+		p.update({ content: content5 });
+
+		expect(p.diff(content4)).toBe(true);
+		expect(p.isDirty()).toBe(false);
+		expect(p.hasChanged()).toBe(true);
+		expect([...p.blocks.values()][1].legacy).toBeDefined();
+
+		const content6 = `
+        %%{ hello world 2 }%%
+
+        content
+        
+        %%{ end }%%
+
+        %%{ hello world 2 }%%
+
+        content
+
+		
+		%%{ ${SEPARATOR_TOKEN} }%%
+        
+        %%{ end }%%
+        `;
+
+		p.update({ content: content6 });
+
+		expect(p.diff(content5)).toBe(true);
+		expect(p.isDirty()).toBe(false);
+		expect(p.hasChanged()).toBe(false);
+		expect([...p.blocks.values()][1].legacy).toBeDefined();
+	});
+
+	test("parsed will reparse unchanged but changed postContent", async () => {
+		const content = `
+        %%{ hello world }%%
+
+        content
+
+		%%{ ${SEPARATOR_TOKEN} }%%
+
+		rendered
+        
+        %%{ end }%%
+        `;
+
+		const p = new Parsed({ content: "" });
+
+		expect(p.hasChanged()).toBe(false);
+
+		p.update({ content });
+
+		expect(p.diff(content)).toBe(false);
+		expect(p.hasChanged()).toBe(true);
+		expect(p.needsRender()).toBe(true);
+
+		p.blocks.forEach((block) => block.setRender(true));
+
+		p.update({ content });
+
+		expect(p.isDirty()).toBe(false);
+		expect(p.hasChanged()).toBe(false);
+		expect(p.needsRender()).toBe(false);
+
+		const content2 = `
+        %%{ hello world }%%
+
+        content
+        
+        %%{ end }%%
+        `;
+
+		p.update({ content: content2 });
+
+		expect(p.isDirty()).toBe(false);
+		expect(p.hasChanged()).toBe(false);
+		expect(p.needsRender()).toBe(true);
+	});
 });
 
 describe("Block rendering", () => {
@@ -476,6 +717,29 @@ describe("Block rendering", () => {
 			4,
 			content
 		);
+	});
+
+	test("block returns correct delta position", async () => {
+		expect(block.deltaPosition).toBe(0);
+		block.render("some long ass text");
+		expect(block.deltaPosition).toBe(32);
+	});
+
+	test("block returns correct delta position with initial sep tag content", async () => {
+		block.render("hello world");
+		block.setRender(false);
+		// @ts-ignore
+		block.originalContent = block.content;
+
+		expect(block.deltaPosition).toBe(0);
+
+		block.render("hello world world");
+		block.setRender(false);
+		expect(block.deltaPosition).toBe(6);
+
+		block.render("");
+		block.setRender(false);
+		expect(block.deltaPosition).toBe(-11);
 	});
 
 	describe("block can add separator tag", () => {
@@ -525,9 +789,9 @@ describe("Block rendering", () => {
 				`%%{ ${SEPARATOR_TOKEN} }%%`
 			);
 			expect(block.sepTag?.start).toBe(23);
-			expect(block.sepTag?.end).toBe(58);
+			expect(block.sepTag?.end).toBe(34);
 
-			expect(block.endTag?.start).toBe(59);
+			expect(block.endTag?.start).toBe(35);
 			expect(block.endTag?.start).toBe(
 				block.startTag.end + block.content.length
 			);
@@ -547,7 +811,10 @@ describe("Block rendering", () => {
 		test("when on single line", async () => {
 			expect(block.modified()).toBe(false);
 
-			block.content = "content";
+			// @ts-ignore
+			block._content = "content";
+			// @ts-ignore
+			block.processContent();
 
 			// @ts-ignore
 			block.addSeparatorTag();
@@ -579,9 +846,9 @@ describe("Block rendering", () => {
 				`%%{ ${SEPARATOR_TOKEN} }%%`
 			);
 			expect(block.sepTag?.start).toBe(21);
-			expect(block.sepTag?.end).toBe(56);
+			expect(block.sepTag?.end).toBe(32);
 
-			expect(block.endTag?.start).toBe(57);
+			expect(block.endTag?.start).toBe(33);
 			expect(block.endTag?.start).toBe(
 				block.startTag.end + block.content.length
 			);
@@ -631,9 +898,9 @@ describe("Block rendering", () => {
 				// @ts-ignore
 				block.sepTag?.start + block.sepTag?.outerContent.length
 			);
-			expect(block.sepTag?.end).toBe(58);
+			expect(block.sepTag?.end).toBe(34);
 
-			expect(block.endTag?.start).toBe(76);
+			expect(block.endTag?.start).toBe(52);
 			expect(block.endTag?.start).toBe(
 				block.startTag.end + block.content.length
 			);
@@ -665,7 +932,10 @@ describe("Block rendering", () => {
 		});
 
 		test("when on single line", async () => {
-			block.content = "content";
+			// @ts-ignore
+			block._content = "content";
+			// @ts-ignore
+			block.processContent();
 
 			const render = "rendered content";
 
@@ -696,9 +966,9 @@ describe("Block rendering", () => {
 				// @ts-ignore
 				block.sepTag?.start + block.sepTag?.outerContent.length
 			);
-			expect(block.sepTag?.end).toBe(56);
+			expect(block.sepTag?.end).toBe(32);
 
-			expect(block.endTag?.start).toBe(72);
+			expect(block.endTag?.start).toBe(48);
 			expect(block.endTag?.start).toBe(
 				block.startTag.end + block.content.length
 			);
@@ -750,9 +1020,13 @@ describe("Block rendering", () => {
 			expect(block.preContent).toBe("\ncontent\n");
 			expect(block.postContent).toBe("");
 
+			expect(block.deltaPosition).toBe(0);
+
 			const render1 = "hello\nworld\n1";
 
 			block.render(render1);
+
+			expect(block.deltaPosition).toBe(27);
 
 			// @ts-ignore
 			block.rendered = false;
@@ -760,6 +1034,8 @@ describe("Block rendering", () => {
 			const render2 = "ok";
 
 			block.render(render2);
+
+			expect(block.deltaPosition).toBe(16); // always from original content
 
 			const rendered = `\n${render2}\n`;
 
@@ -772,7 +1048,7 @@ describe("Block rendering", () => {
 				`\ncontent\n\n${block.sepTag?.outerContent}${rendered}`
 			);
 
-			expect(block.endTag?.start).toBe(62);
+			expect(block.endTag?.start).toBe(38);
 			expect(block.endTag?.start).toBe(
 				block.startTag.end + block.content.length
 			);
@@ -813,9 +1089,13 @@ describe("Block rendering", () => {
 			expect(block.preContent).toBe("\ncontent\n");
 			expect(block.postContent).toBe("");
 
+			expect(block.deltaPosition).toBe(0);
+
 			const render1 = "ok";
 
 			block.render(render1);
+
+			expect(block.deltaPosition).toBe(16);
 
 			// @ts-ignore
 			block.rendered = false;
@@ -823,6 +1103,8 @@ describe("Block rendering", () => {
 			const render2 = "hello\nworld\n1";
 
 			block.render(render2);
+
+			expect(block.deltaPosition).toBe(27);
 
 			const rendered = `\n${render2}\n`;
 
@@ -835,7 +1117,7 @@ describe("Block rendering", () => {
 				`\ncontent\n\n${block.sepTag?.outerContent}${rendered}`
 			);
 
-			expect(block.endTag?.start).toBe(73);
+			expect(block.endTag?.start).toBe(49);
 			expect(block.endTag?.start).toBe(
 				block.startTag.end + block.content.length
 			);
@@ -876,23 +1158,28 @@ describe("Block rendering", () => {
 
 describe("Parser utilities", () => {
 	test("correct line number gets returned", async () => {
-		const content = "\n \n \n \n3\n\n\n";
+		const content1 = "ok\n \n \n \n3\n\n\n";
 
-		const p = new Parsed({ content });
+		const p = new Parsed({ content: content1 });
 
 		// @ts-ignore
-		const lineNumber = p.getLineNumberAtPosition(7);
+		let lineNumber = p.getLineNumberAtPosition(1);
+
+		expect(lineNumber).toBe(1);
+
+		// @ts-ignore
+		lineNumber = p.getLineNumberAtPosition(9);
 
 		expect(lineNumber).toBe(5);
 	});
 
 	test("correct line numbers gets returned", async () => {
-		const content = "\n3 \n \n \n3\n3\n\n";
+		const content = "ok\n3 \n \n \n3\n3\n\n";
 
 		const p = new Parsed({ content });
 
 		// @ts-ignore
-		const lineNumbers = p.getLineNumberAtPositions([10, 1, 8]);
+		const lineNumbers = p.getLineNumberAtPositions([12, 3, 10]);
 
 		expect(lineNumbers).toEqual([6, 2, 5]);
 	});

@@ -89,6 +89,12 @@ export class App {
 	constructor() {}
 }
 
+export class MarkdownView {
+	containerEl = document.createElement("div");
+
+	constructor() {}
+}
+
 export class Modal {
 	app: any;
 
