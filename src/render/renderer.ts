@@ -2,9 +2,9 @@ import { MarkdownView, Vault } from "obsidian";
 
 import { constant } from "../constants";
 import Evaluator from "../evaluator/evaluator";
+import Generator from "../generator/generator";
 import { Block, Parsed } from "../parser/parser";
 import logger from "../utils/logger";
-import Generator from "./generator";
 
 export default class MarkPlaceRenderer {
 	constructor(public vault: Vault) {

@@ -1,10 +1,10 @@
-import Generator from "../render/generator";
+import Generator, { GeneratorBuilder } from "../generator/generator";
 import { dedent } from "../utils/misc";
 
 const PREFIX_COMMENT_TOKEN = "%%";
 
 interface EvaluatorContext {
-	mp: Generator;
+	mp: GeneratorBuilder;
 }
 
 interface EvaluatorLocals {
@@ -43,7 +43,7 @@ export default class Evaluator {
 		return f as () => Promise<void>;
 	}
 
-	private createContext(ctx: { mp: Generator }): EvaluatorContext {
+	private createContext(ctx: { mp: GeneratorBuilder }): EvaluatorContext {
 		return {
 			...ctx,
 		};
@@ -62,7 +62,7 @@ export default class Evaluator {
 	}
 
 	async run(generator: Generator, code: string) {
-		const preCtx = this.createContext({ mp: generator });
+		const preCtx = this.createContext({ mp: generator.builder() });
 		const context = Object.assign({}, this.userContext, preCtx);
 
 		const prefixedCode = this.prefixComment(code);
