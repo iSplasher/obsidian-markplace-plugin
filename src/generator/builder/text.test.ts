@@ -1,17 +1,31 @@
-import Generator from "../generator";
+import Generator, { GeneratorBuilder } from "../generator";
+import TextBuilder from "./text";
 
-describe("Text compiling", () => {
+describe("Text builder", () => {
 	let generator: Generator;
+	let builder: GeneratorBuilder;
 
 	beforeEach(() => {
 		generator = new Generator();
+
+		generator.registerBuilder(new TextBuilder());
+
+		builder = generator.builder();
 	});
 
-	describe("text content", () => {
+	describe("text", () => {
 		it("basic text", () => {
-			const builder = generator.builder();
 			builder.text("test");
 			expect(generator.compile()).toBe("test");
+		});
+	});
+
+	describe("newline", () => {
+		it("basic text newline", () => {
+			builder.newline();
+			builder.text("test");
+			builder.newLine();
+			expect(generator.compile()).toBe("\ntest\n");
 		});
 	});
 });

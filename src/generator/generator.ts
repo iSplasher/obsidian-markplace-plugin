@@ -1,4 +1,5 @@
 import Builder from "./base";
+import TextBuilder from "./builder/text";
 
 export interface GeneratorBuilder {
 	[key: string]: (...args: any[]) => any;
@@ -53,6 +54,10 @@ export default class Generator {
 				"Class fields in base Builder class should start with '________'"
 			);
 		}
+	}
+
+	builtinBuilders() {
+		return [new TextBuilder()];
 	}
 
 	registerBuilder(builder: Builder) {

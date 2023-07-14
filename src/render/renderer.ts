@@ -99,6 +99,10 @@ export default class MarkPlaceRenderer {
 		} else {
 			try {
 				const generator = new Generator();
+				generator
+					.builtinBuilders()
+					.forEach((b) => generator.registerBuilder(b));
+
 				await evaluator.run(generator, block.preContent);
 				block.render(generator.compile());
 			} catch (e) {
