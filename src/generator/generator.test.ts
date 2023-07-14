@@ -1,11 +1,14 @@
-import Builder from "./base";
-import Generator from "./generator";
+import { TFile } from 'obsidian';
+
+import { createBlock } from '../../tests/utils';
+import Builder from './base';
+import Generator from './generator';
 
 describe("Generator", () => {
 	let generator: Generator;
 
 	beforeEach(() => {
-		generator = new Generator();
+		generator = new Generator(new TFile(), createBlock());
 	});
 
 	test("can register builder", async () => {
@@ -22,7 +25,7 @@ describe("Generator", () => {
 
 		generator.registerBuilder(new TestBuilder());
 
-		const builder = generator.builder();
+		const builder = generator.builder().builder;
 
 		builder.text("test");
 
@@ -31,21 +34,21 @@ describe("Generator", () => {
 
 	test("builder can access own context", async () => {
 		class TestBuilder extends Builder {
-			ctx: string;
+			testCtx: string;
 			constructor() {
 				super();
 				this.addProperty("text", this.text);
 			}
 
 			text(t: string) {
-				this.ctx = this.ctx || t;
-				this.addContent(this.ctx);
+				this.testCtx = this.testCtx || t;
+				this.addContent(this.testCtx);
 			}
 		}
 
 		generator.registerBuilder(new TestBuilder());
 
-		const builder = generator.builder();
+		const builder = generator.builder().builder;
 
 		builder.text("test");
 		builder.text("other");
@@ -55,22 +58,22 @@ describe("Generator", () => {
 
 	test("builder can access vars set in constructor", async () => {
 		class TestBuilder extends Builder {
-			ctx: string;
+			testCtx: string;
 			constructor() {
 				super();
 				this.addProperty("text", this.text);
-				this.ctx = "const";
+				this.testCtx = "const";
 			}
 
 			text(t: string) {
-				this.ctx = this.ctx || t;
-				this.addContent(this.ctx);
+				this.testCtx = this.testCtx || t;
+				this.addContent(this.testCtx);
 			}
 		}
 
 		generator.registerBuilder(new TestBuilder());
 
-		const builder = generator.builder();
+		const builder = generator.builder().builder;
 
 		builder.text("test");
 		builder.text("other");
@@ -80,16 +83,16 @@ describe("Generator", () => {
 
 	test("builder don't inherit base builder's fields", async () => {
 		class TestBuilder extends Builder {
-			ctx: string;
+			testCtx: string;
 			constructor() {
 				super();
 				this.addProperty("text", this.text);
 				// @ts-ignore
-				this.ctx = this.props;
+				this.testCtx = this.props;
 			}
 
 			text(t: string) {
-				this.addContent(this.ctx ? "1" : "2");
+				this.addContent(this.testCtx ? "1" : "2");
 				// @ts-ignore
 				this.addContent(this.props ? "1" : "2");
 			}
@@ -97,7 +100,7 @@ describe("Generator", () => {
 
 		generator.registerBuilder(new TestBuilder());
 
-		const builder = generator.builder();
+		const builder = generator.builder().builder;
 
 		builder.text("test");
 
@@ -106,28 +109,28 @@ describe("Generator", () => {
 
 	test("builders don't share context", async () => {
 		class TestBuilder extends Builder {
-			ctx: any;
+			testCtx: any;
 			constructor() {
 				super();
 				this.addProperty("text", this.text);
 			}
 
 			text(t: string) {
-				this.ctx = this.ctx || "";
-				this.addContent(this.ctx);
-				this.ctx += t;
+				this.testCtx = this.testCtx || "";
+				this.addContent(this.testCtx);
+				this.testCtx += t;
 			}
 		}
 
 		generator.registerBuilder(new TestBuilder());
 
-		const builder1 = generator.builder();
+		const builder1 = generator.builder().builder;
 
 		builder1.text("test1");
 
 		expect(generator.compile()).toBe("");
 
-		const builder2 = generator.builder();
+		const builder2 = generator.builder().builder;
 
 		builder2.text("test2");
 
@@ -136,25 +139,25 @@ describe("Generator", () => {
 
 	test("builders retain their methods", async () => {
 		class TestBuilder extends Builder {
-			ctx: any;
+			testCtx: any;
 			constructor() {
 				super();
 				this.addProperty("text", this.text);
 			}
 
 			custom(): void {
-				this.ctx = "custom";
+				this.testCtx = "custom";
 			}
 
 			text(t: string) {
-				this.addContent(this.ctx ?? "");
+				this.addContent(this.testCtx ?? "");
 				this.custom();
 			}
 		}
 
 		generator.registerBuilder(new TestBuilder());
 
-		const builder1 = generator.builder();
+		const builder1 = generator.builder().builder;
 
 		expect(builder1?.onAfterEvaluation).toBeUndefined();
 		builder1.text("test1");
@@ -165,24 +168,24 @@ describe("Generator", () => {
 
 	test("some base builder functions don't get overriden while other do", async () => {
 		class TestBuilder extends Builder {
-			ctx: any;
+			testCtx: any;
 			constructor() {
 				super();
 				this.addProperty("text", this.text);
 			}
 
-			onAfterEvaluation(): void {
-				this.ctx = "evaluated";
+			async onAfterEvaluation(...args: any[]) {
+				this.testCtx = "evaluated";
 			}
 
 			// @ts-ignore
 			properties(): void {
-				this.ctx = "properties";
+				this.testCtx = "properties";
 			}
 
-			text(t: string) {
-				this.addContent(this.ctx ?? "");
-				this.onAfterEvaluation();
+			async text(t: string) {
+				this.addContent(this.testCtx ?? "");
+				await this.onAfterEvaluation();
 				this.properties();
 			}
 		}
@@ -190,18 +193,18 @@ describe("Generator", () => {
 		// @ts-ignore
 		generator.registerBuilder(new TestBuilder());
 
-		const builder1 = generator.builder();
+		const builder1 = generator.builder().builder;
 
 		expect(builder1?.onAfterEvaluation).toBeUndefined();
-		builder1.text("test1");
+		await builder1.text("test1");
 		expect(generator.compile()).toBe("");
-		builder1.text("test1");
+		await builder1.text("test1");
 		expect(generator.compile()).toBe("evaluated");
 	});
 
 	test("builder functions get overriden", async () => {
 		class TestBuilder extends Builder {
-			ctx: any;
+			testCtx: any;
 			constructor() {
 				super();
 				this.addProperty("text", this.text);
@@ -215,9 +218,10 @@ describe("Generator", () => {
 		// @ts-ignore
 		generator.registerBuilder(new TestBuilder());
 
-		const builder1 = generator.builder();
+		const builder1 = generator.builder().builder;
 
 		builder1.text("test1");
 		expect(generator.compile()).toBe("1");
 	});
+
 });

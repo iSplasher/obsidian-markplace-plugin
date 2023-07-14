@@ -1,3 +1,4 @@
+import { createBlock } from "../../tests/utils";
 import { dedent } from "../utils/misc";
 import { Block, Parsed } from "./parser";
 
@@ -172,37 +173,39 @@ describe("Tag location parsing", () => {
 		});
 	});
 
-	test.skip("skips obsidian comment", async () => {
-		const content = `
-        # hello world
-        %%%{ test }%% %%{ end }%%
-        `;
+	describe("comments", () => {
+		test.skip("skips obsidian comment", async () => {
+			const content = `
+			# hello world
+			%%%{ test }%% %%{ end }%%
+			`;
 
-		const p = new Parsed({ content });
+			const p = new Parsed({ content });
 
-		// @ts-ignore
-		const tags = p.getTagLocations(content);
+			// @ts-ignore
+			const tags = p.getTagLocations(content);
 
-		expect(tags.length).toBe(0);
-	});
+			expect(tags.length).toBe(0);
+		});
 
-	test.skip("skips obsidian comment 2", async () => {
-		const content = `
-        # hello world
-        %%%{ test }%%
-        %%{ end }%%
-        `;
+		test.skip("skips obsidian comment 2", async () => {
+			const content = `
+			# hello world
+			%%%{ test }%%
+			%%{ end }%%
+			`;
 
-		const p = new Parsed({ content });
+			const p = new Parsed({ content });
 
-		// @ts-ignore
-		const tags = p.getTagLocations(content);
+			// @ts-ignore
+			const tags = p.getTagLocations(content);
 
-		expect(tags?.[0]).toMatchObject({
-			start: 49,
-			end: 56,
-			content: " end ",
-			outerContent: "%%{ end }%%",
+			expect(tags?.[0]).toMatchObject({
+				start: 49,
+				end: 56,
+				content: " end ",
+				outerContent: "%%{ end }%%",
+			});
 		});
 	});
 });
@@ -384,6 +387,48 @@ describe("Block parsing", () => {
 		} catch (e) {
 			expect(e.message).toMatch("Invalid block tag modifier '['");
 		}
+	});
+
+	test("valid block tag if no space in start tag", async () => {
+		const content = `
+        %%{ok}%% 
+		%%{ end }%%
+        `;
+
+		const p = new Parsed({ content });
+
+		// @ts-ignore
+		p.scan();
+		expect(p.blocks.size).toBe(1);
+	});
+
+	test("invalid block tag if only space in start tag end", async () => {
+		const content = `
+        %%{ok }%% 
+		%%{end}%%
+        `;
+
+		const p = new Parsed({ content });
+
+		expect.assertions(1);
+		try {
+			// @ts-ignore
+			p.scan();
+		} catch (e) {
+			expect(e.message).toMatch("Invalid block tag modifier 'o'");
+		}
+	});
+
+	test("is known tag type if valid token", async () => {
+		const content = `
+        %%{ok}%% 
+		%%{end}%%
+        `;
+
+		const p = new Parsed({ content });
+		// @ts-ignore
+		p.scan();
+		expect(p.blocks.size).toBe(1);
 	});
 
 	test.skip("Skips obsidian comment", async () => {
@@ -680,43 +725,67 @@ describe("Block parsing", () => {
 		expect(p.hasChanged()).toBe(false);
 		expect(p.needsRender()).toBe(true);
 	});
+
+	describe("comments", () => {
+		test("block can strip comments", async () => {
+			const COMMENT_TOKEN = "%%";
+
+			const content = dedent`
+			%%{ start }%%
+			${COMMENT_TOKEN}
+			# hello world
+			%%{ end }%%
+			`;
+
+			const p = new Parsed({ content: "" });
+			p.update({ content });
+
+			const block = [...p.blocks.values()][0];
+
+			expect(block.strippedPreContent).toBe("\n\n# hello world\n");
+		});
+
+		test("block can strip comments if singleline", async () => {
+			const COMMENT_TOKEN = "%%";
+
+			const content = dedent`
+			%%{ start }%% ${COMMENT_TOKEN}# hello world${COMMENT_TOKEN} %%{ end }%%
+			`;
+
+			const p = new Parsed({ content: "" });
+			p.update({ content });
+
+			const block = [...p.blocks.values()][0];
+
+			expect(block.strippedPreContent).toBe(`# hello world`);
+		});
+
+		test("block can't strip comments if singleline and its not terminated", async () => {
+			const COMMENT_TOKEN = "%%";
+
+			const content = dedent`
+			%%{ start }%% ${COMMENT_TOKEN} # hello world %%{ end }%%
+			`;
+
+			const p = new Parsed({ content: "" });
+			p.update({ content });
+
+			const block = [...p.blocks.values()][0];
+
+			expect(block.strippedPreContent).toBe(
+				` ${COMMENT_TOKEN} # hello world `
+			);
+		});
+	});
 });
 
 describe("Block rendering", () => {
 	let block: Block;
 
 	beforeEach(() => {
-		const startContent = "start";
-		const startOuterContent = `%%{ ${startContent} }%%`;
-		const endContent = "end";
-		const endOuterContent = `%%{ ${endContent} }%%`;
-
 		const content = "\ncontent\n";
 
-		block = new Block(
-			{
-				start: 0,
-				end: startOuterContent.length,
-				content: startContent,
-				outerContent: startOuterContent,
-				escapes: [],
-			},
-			0,
-			1,
-			null,
-			{
-				start: startOuterContent.length + content.length,
-				end:
-					startOuterContent.length +
-					content.length +
-					endOuterContent.length,
-				content: endContent,
-				outerContent: endOuterContent,
-				escapes: [],
-			},
-			4,
-			content
-		);
+		block = createBlock(content);
 	});
 
 	test("block returns correct delta position", async () => {

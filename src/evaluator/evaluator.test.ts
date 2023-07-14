@@ -1,3 +1,7 @@
+import { TFile } from "obsidian";
+
+import { createBlock } from "../../tests/utils";
+import Builder from "../generator/base";
 import Generator from "../generator/generator";
 import Evaluator from "./evaluator";
 
@@ -7,20 +11,19 @@ describe("Evaluating code", () => {
 
 	beforeEach(() => {
 		evaluator = new Evaluator();
-		generator = new Generator();
+		generator = new Generator(new TFile(), createBlock());
 	});
 
 	test("can evaluate simple code", async () => {
-		const ctx = await evaluator.run(
+		const testCtx = await evaluator.run(
 			generator,
 			`
             this.r = 2 + 2
         `
 		);
 
-		expect(ctx.r).toBe(4);
+		expect(testCtx.r).toBe(4);
 	});
-
 	test("is local scope", async () => {
 		expect.assertions(3);
 
@@ -59,45 +62,45 @@ describe("Evaluating code", () => {
 	});
 
 	test("can't do anything about global", async () => {
-		const ctx = await evaluator.run(
+		const testCtx = await evaluator.run(
 			generator,
 			`
             this.r = global
         `
 		);
 
-		expect(ctx.r).toBe(global);
+		expect(testCtx.r).toBe(global);
 	});
 
 	test("restricted global app object", async () => {
-		const ctx = await evaluator.run(
+		const testCtx = await evaluator.run(
 			generator,
 			`
             this.r = app
         `
 		);
 
-		expect(ctx.r).toBeUndefined();
+		expect(testCtx.r).toBeUndefined();
 	});
 
 	test("has local mp object", async () => {
-		let ctx = await evaluator.run(
+		let testCtx = await evaluator.run(
 			generator,
 			`
             this.r = this.mp
         `
 		);
 
-		expect(ctx.r).toBeDefined();
+		expect(testCtx.r).toBeDefined();
 
-		ctx = await evaluator.run(
+		testCtx = await evaluator.run(
 			generator,
 			`
             this.r = mp
         `
 		);
 
-		expect(ctx.r).toBeDefined();
+		expect(testCtx.r).toBeDefined();
 	});
 
 	test("can't reassign predfined context", async () => {
@@ -108,14 +111,14 @@ describe("Evaluating code", () => {
         `
 		);
 
-		const ctx = await evaluator.run(
+		const testCtx = await evaluator.run(
 			generator,
 			`
             this.mp = this.mp
         `
 		);
 
-		expect(ctx.mp).not.toBe(2);
+		expect(testCtx.mp).not.toBe(2);
 	});
 
 	test("can't reassign predefined locals", async () => {
@@ -201,18 +204,18 @@ describe("Evaluating code", () => {
 
 	// this doesn't work in nodejs , but works in browser
 	test.skip("can toplevel async/await", async () => {
-		const ctx = await evaluator.run(
+		const testCtx = await evaluator.run(
 			generator,
 			`
             this.r = await Promise.resolve(2);
         `
 		);
 
-		expect(ctx.r).toBe(2);
+		expect(testCtx.r).toBe(2);
 	});
 
 	test("can return anytime", async () => {
-		const ctx = await evaluator.run(
+		const testCtx = await evaluator.run(
 			generator,
 			`
             this.r = 1
@@ -222,23 +225,164 @@ describe("Evaluating code", () => {
         `
 		);
 
-		expect(ctx.r).toBe(2);
+		expect(testCtx.r).toBe(2);
 	});
+	test("evaluation functions get executed and has the right context", async () => {
+		class TestBuilder extends Builder {
+			testCtx: any;
+			constructor() {
+				super();
+				this.addProperty("text", this.text);
+			}
 
-	test("will prefix obsidian comments", async () => {
-		const token = "%%";
+			async onBeforeEvaluation(...args: any[]) {
+				this.testCtx = {
+					before: true,
+					beforeMp: this.mp,
+				};
+			}
 
-		const ctx = await evaluator.run(
+			async onAfterEvaluation(...args: any[]) {
+				this.testCtx.after = true;
+				this.testCtx.afterMp = this.mp;
+			}
+
+			text(t: string) {
+				return this.testCtx;
+			}
+		}
+
+		// @ts-ignore
+		generator.registerBuilder(new TestBuilder());
+
+		const testCtx = await evaluator.run(
 			generator,
-			`
-            ${token}
-            ${token} this.r = 1
-            this.r = 2
-            this.r = 3
-            ${token}
-        `
+			"this.r = mp.text('test')"
 		);
 
-		expect(ctx.r).toBe(3);
+		expect(testCtx.r?.before).toBe(true);
+		expect(testCtx.r?.beforeMp).toBeDefined();
+		expect(testCtx.r?.after).toBe(true);
+		expect(testCtx.r?.afterMp).toBeDefined();
+	});
+
+	test("builder can access BuilderContext", async () => {
+		class TestBuilder extends Builder {
+			testCtx: any;
+			constructor() {
+				super();
+				this.addProperty("text", this.text);
+			}
+
+			text(t: string) {
+				this.testCtx = {
+					mp: this.mp,
+					ctx: this.ctx,
+				};
+				return this.testCtx;
+			}
+		}
+
+		generator.registerBuilder(new TestBuilder());
+
+		const testCtx = await evaluator.run(
+			generator,
+			"this.r = mp.text('test')"
+		);
+
+		["mp", "ctx"].forEach((k) => {
+			expect(testCtx.r[k]).toBeDefined();
+		});
+	});
+
+	test("builder getters and setters works", async () => {
+		class TestBuilder extends Builder {
+			testCtx: any;
+			constructor() {
+				super();
+				this.addProperty("text", this.text);
+			}
+
+			text(t: string) {
+				this.testCtx = {
+					mp: this.mp,
+					testMp: this.test,
+				};
+				return this.testCtx;
+			}
+
+			get test() {
+				return this.mp;
+			}
+		}
+
+		// @ts-ignore
+		generator.registerBuilder(new TestBuilder());
+
+		const testCtx = await evaluator.run(
+			generator,
+			"this.r = mp.text('test')"
+		);
+
+		expect(testCtx.r.mp).toBeDefined();
+		expect(testCtx.r.testMp).toBe(testCtx.r.mp);
+	});
+
+	test("builder accessor addProperty", async () => {
+		class TestBuilder extends Builder {
+			testCtx: any;
+			constructor() {
+				super();
+				this.addProperty(
+					"text",
+					// @ts-ignore
+					Object.getOwnPropertyDescriptor(
+						TestBuilder.prototype,
+						"text"
+					)
+				);
+			}
+
+			get text() {
+				return this.mp;
+			}
+		}
+
+		// @ts-ignore
+		generator.registerBuilder(new TestBuilder());
+
+		const testCtx = await evaluator.run(generator, "this.r = mp.text");
+
+		expect(testCtx.r).toBeDefined();
+	});
+
+	test("builder accessor addProperty will get overridden", async () => {
+		class TestBuilder extends Builder {
+			testCtx: any;
+			constructor(prop: string) {
+				super();
+				this.testCtx = prop;
+				this.addProperty(
+					"text",
+					// @ts-ignore
+					Object.getOwnPropertyDescriptor(
+						TestBuilder.prototype,
+						"text"
+					)
+				);
+			}
+
+			get text() {
+				return this.testCtx;
+			}
+		}
+
+		// @ts-ignore
+		generator.registerBuilder(new TestBuilder("text1"));
+		generator.registerBuilder(new TestBuilder("text2"));
+
+		const testCtx = await evaluator.run(generator, "this.r = mp.text");
+
+		expect(testCtx.r).toBe("text2");
 	});
 });

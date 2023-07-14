@@ -86,8 +86,11 @@ export class Notice {
 }
 
 export class App {
+	vault = new Vault();
+
 	constructor() {}
 }
+
 
 export class MarkdownView {
 	containerEl = document.createElement("div");

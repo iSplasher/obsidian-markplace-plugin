@@ -28,7 +28,7 @@ describe("Rendering blocks", () => {
 
 	test("can render block", async () => {
 		parsed.update({
-			content: "%%{ start }%%\n mp.text('Block[start]') \n%%{ end }%%",
+			content: "%%{ start }%%\nmp.text('Block[start]')\n%%{ end }%%",
 		});
 		let written = "";
 
@@ -42,11 +42,38 @@ describe("Rendering blocks", () => {
 		const blocks = [...parsed.blocks.values()];
 
 		const block = blocks?.[0];
-		const rendered = `\nBlock[${block.startTag.content.trim()}]\n`;
+		const rendered = `\nBlock[${block.id}]\n`;
 
 		expect(block.postContent).toEqual(rendered);
 
-		expect(written).toEqual(`${blocks?.[0].outerContent}`);
+		expect(written).toEqual(
+			`%%{ start }%%\nmp.text('Block[start]')\n\n%%{ ${SEPARATOR_TOKEN} }%%${rendered}%%{ end }%%`
+		);
+	});
+
+	test("can render singleline block", async () => {
+		parsed.update({
+			content: "%%{ start }%% mp.text('Block[start]') %%{ end }%%",
+		});
+		let written = "";
+
+		(renderer.vault.process as jest.Mock).mockImplementation((path, cb) => {
+			written = cb("");
+			return written;
+		});
+
+		await renderer.onRender(view, parsed);
+
+		const blocks = [...parsed.blocks.values()];
+
+		const block = blocks?.[0];
+		const rendered = `Block[${block.id}]`;
+
+		expect(block.postContent).toEqual(rendered);
+
+		expect(written).toEqual(
+			`%%{ start }%% mp.text('Block[start]')  %%{ ${SEPARATOR_TOKEN} }%%${rendered}%%{ end }%%`
+		);
 	});
 
 	test("can stitch simple content", async () => {
@@ -73,6 +100,62 @@ describe("Rendering blocks", () => {
 		expect(blocks.every((block) => block.hasRendered())).toBe(true);
 
 		expect(written).toEqual(`${blocks?.[0].outerContent}`);
+	});
+
+	test("can stitch singleline content", async () => {
+		const originalContent = dedent`
+        # %%{ start }%% mp.text('Block[start]') %%{ end }%%
+        `;
+
+		parsed.update({
+			content: originalContent,
+		});
+		let written = "";
+
+		(renderer.vault.process as jest.Mock).mockImplementation((path, cb) => {
+			written = cb(originalContent);
+			return written;
+		});
+
+		await renderer.onRender(view, parsed);
+
+		const rendered = `Block[start]`;
+
+		const blocks = [...parsed.blocks.values()];
+
+		expect(blocks.every((block) => block.hasRendered())).toBe(true);
+
+		expect(written).toEqual(
+			`# %%{ start }%% mp.text('Block[start]')  %%{ ${SEPARATOR_TOKEN} }%%${rendered}%%{ end }%%`
+		);
+	});
+
+	test("can stitch singleline with comment content", async () => {
+		const originalContent = dedent`
+        # %%{ start }%%%%mp.text('Block[start]')%%%%{ end }%%
+        `;
+
+		parsed.update({
+			content: originalContent,
+		});
+		let written = "";
+
+		(renderer.vault.process as jest.Mock).mockImplementation((path, cb) => {
+			written = cb(originalContent);
+			return written;
+		});
+
+		await renderer.onRender(view, parsed);
+
+		const rendered = `Block[start]`;
+
+		const blocks = [...parsed.blocks.values()];
+
+		expect(blocks.every((block) => block.hasRendered())).toBe(true);
+
+		expect(written).toEqual(
+			`# %%{ start }%%%%mp.text('Block[start]')%% %%{ ${SEPARATOR_TOKEN} }%%${rendered}%%{ end }%%`
+		);
 	});
 
 	test("can stitch leading and trailing content", async () => {
@@ -152,6 +235,45 @@ describe("Rendering blocks", () => {
         trailing
 
         ${content2}
+
+        trailing
+        `);
+	});
+
+	test("can stitch leading and trailing content with singleline blocks", async () => {
+		const originalContent = dedent`
+        leading
+
+        # %%{ title }%% content %%{ end }%%
+
+        > Hello %%{ name }%% content %%{ end }%%!
+        
+        trailing
+        `;
+
+		parsed.update({
+			content: originalContent,
+		});
+		let written = "";
+
+		(renderer.vault.process as jest.Mock).mockImplementation((path, cb) => {
+			written = cb(originalContent);
+			return written;
+		});
+
+		await renderer.onRender(view, parsed);
+
+		const blocks = [...parsed.blocks.values()];
+
+		const content1 = blocks?.[0].outerContent;
+		const content2 = blocks?.[1].outerContent;
+
+		expect(written).toEqual(dedent`
+        leading
+
+        # ${content1}
+
+        > Hello ${content2}!
 
         trailing
         `);

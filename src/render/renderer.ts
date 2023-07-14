@@ -1,4 +1,4 @@
-import { MarkdownView, Vault } from "obsidian";
+import { MarkdownView, TFile, Vault } from "obsidian";
 
 import { constant } from "../constants";
 import Evaluator from "../evaluator/evaluator";
@@ -33,7 +33,7 @@ export default class MarkPlaceRenderer {
 		const evaluator = new Evaluator();
 
 		for (const block of blocks) {
-			await this.renderBlock(block, evaluator);
+			await this.renderBlock(currentFile, block, evaluator);
 		}
 
 		logger.devNotice("Rendered", blocks.length, "blocks");
@@ -84,11 +84,12 @@ export default class MarkPlaceRenderer {
 			}
 
 			logger.devNotice("Wrote content to", currentFile.path);
+			console.log(newContent);
 			return newContent;
 		});
 	}
 
-	async renderBlock(block: Block, evaluator: Evaluator) {
+	async renderBlock(file: TFile, block: Block, evaluator: Evaluator) {
 		if (block.hasRendered()) {
 			return block;
 		}
@@ -98,14 +99,15 @@ export default class MarkPlaceRenderer {
 			block.setRender(true);
 		} else {
 			try {
-				const generator = new Generator();
+				const generator = new Generator(file, block);
 				generator
 					.builtinBuilders()
 					.forEach((b) => generator.registerBuilder(b));
 
-				await evaluator.run(generator, block.preContent);
+				await evaluator.run(generator, block.strippedPreContent);
 				block.render(generator.compile());
 			} catch (e) {
+				logger.error(e);
 				logger.debugNotice("Error evaluating code", e?.message);
 			}
 		}

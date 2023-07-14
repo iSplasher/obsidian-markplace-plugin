@@ -147,7 +147,7 @@ export default class Cache {
 	}
 
 	private getBlockKey(name: string, block: Block) {
-		return `${name}:${block.startTag.content.trim()}`;
+		return `${name}:${block.id}`;
 	}
 
 	private onSettingsChanged(

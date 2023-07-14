@@ -17,6 +17,8 @@ const END_TOKEN = "end";
 
 const SEPARATOR_TOKEN = "---";
 
+const STRIP_COMMENT_TOKEN = "%%";
+
 const IGNORE_COMMENT_TOKEN = "" as string; // empty disables this atm
 const IGNORE_COMMENT_TERMINATOR = "\n"; // ignore until next line
 
@@ -189,9 +191,57 @@ export class Block {
 		);
 	}
 
+	// stripped of comments
+	get strippedPreContent() {
+		if (this.singleLine()) {
+			// only strip if terminated
+			const starts = this.preContent
+				.trim()
+				.startsWith(STRIP_COMMENT_TOKEN);
+			const ends = this.preContent.trim().endsWith(STRIP_COMMENT_TOKEN);
+			if (starts && ends) {
+				const first = this.preContent.indexOf(STRIP_COMMENT_TOKEN);
+				const last = this.preContent.lastIndexOf(STRIP_COMMENT_TOKEN);
+				return this.preContent.slice(
+					first + STRIP_COMMENT_TOKEN.length,
+					last
+				);
+			} else {
+				return this.preContent;
+			}
+		}
+
+		return this.preContent
+			.split("\n")
+			.map((line) => {
+				if (line.trim().startsWith(STRIP_COMMENT_TOKEN)) {
+					return ``;
+				}
+				return line;
+			})
+			.join("\n");
+	}
+
 	// we deliberately don't implement a getter here
 	get content() {
 		return this._content;
+	}
+
+	get id() {
+		return this.startTag.content.trim();
+	}
+
+	clone() {
+		return new Block(
+			this.originalStartTag,
+			this.startTagType,
+			this.originalStartTagLineNumber,
+			this.originalSepTag,
+			this.originalEndTag,
+			this.endTagType,
+			this.originalContent,
+			this.legacy
+		);
 	}
 
 	private processContent() {
@@ -551,7 +601,7 @@ export class Parsed {
 		if (this._changed || legacyIdMismatch) {
 			this.blocksCache = new Map();
 			for (const block of blocks.values()) {
-				this.blocksCache.set(block.startTag.content.trim(), block);
+				this.blocksCache.set(block.id, block);
 			}
 		}
 
@@ -676,40 +726,39 @@ export class Parsed {
 	private getTagType(tag: TagLocation) {
 		let t: TAG_TYPE | undefined = undefined;
 
+		const tokens = Object.values(TAG_MODIFIER_TOKEN);
+		const modifierCharStart = tag.content.slice(0, 1);
+
 		if (tag.content.trim().toLowerCase() === SEPARATOR_TOKEN) {
 			t = TAG_TYPE.SEPARATOR;
-		} else if (tag.content.trim().toLowerCase() === END_TOKEN) {
-			const modifierCharEnd = tag.outerContent
-				.slice(
-					PARSER_TOKEN.tagStart.length,
-					PARSER_TOKEN.tagStart.length + 1
-				)
-				.trim();
-
-			// end tag doesn't have a modifier
-			if (!modifierCharEnd) {
-				t = TAG_TYPE.END;
+		}
+		// only if modifier is valid
+		else if (
+			modifierCharStart &&
+			tokens.every((x) => x.startsWith(modifierCharStart))
+		) {
+			const l = PARSER_TOKEN.tagStart.length;
+			for (const [k, v] of Object.entries(TAG_MODIFIER_TOKEN)) {
+				const s = tag.outerContent.slice(l, l + v.length);
+				if (s === v) {
+					t = parseInt(k);
+					break;
+				}
 			}
 		} else {
-			const tokens = Object.values(TAG_MODIFIER_TOKEN);
-			const modifierCharStart = tag.outerContent
-				.slice(
-					PARSER_TOKEN.tagStart.length,
-					PARSER_TOKEN.tagStart.length + 1
-				)
-				.trim();
-
-			// only if modifier is valid
-
-			if (tokens.every((x) => x.startsWith(modifierCharStart))) {
-				const l = PARSER_TOKEN.tagStart.length;
-				for (const [k, v] of Object.entries(TAG_MODIFIER_TOKEN)) {
-					const s = tag.outerContent.slice(l, l + v.length);
-					if (s === v) {
-						t = parseInt(k);
-						break;
-					}
+			if (
+				!modifierCharStart ||
+				modifierCharStart === " " ||
+				!tag.content ||
+				(tag.content?.[0] !== " " &&
+					tag.content[tag.content.length - 1] !== " ")
+			) {
+				if (tag.content.trim().toLowerCase() === END_TOKEN) {
+					t = TAG_TYPE.END;
+				} else {
+					t = TAG_TYPE.START;
 				}
+				// then its an invalid modifier
 			} else {
 				throw ParserLocationError.notice(
 					`Invalid block tag modifier '${modifierCharStart}'`,
@@ -768,7 +817,7 @@ export class Parsed {
 			this.content.name,
 			"Did you forget to start the block with " +
 				PARSER_TOKEN.tagStart +
-				" Your Block Text " +
+				" Your Block ID " +
 				PARSER_TOKEN.tagEnd +
 				"?"
 		);

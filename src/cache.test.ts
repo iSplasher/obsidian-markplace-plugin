@@ -1,6 +1,6 @@
 import { TFile, Vault } from "obsidian";
 
-import { setupConstant, teardownConstant } from "../tests/utils";
+import { createBlock, setupConstant, teardownConstant } from "../tests/utils";
 import Cache from "./cache";
 import { Block } from "./parser/parser";
 
@@ -195,37 +195,9 @@ describe("cache block caching", () => {
 	let block: Block;
 
 	beforeEach(() => {
-		const startContent = "start";
-		const startOuterContent = `%%{ ${startContent} }%%`;
-		const endContent = "end";
-		const endOuterContent = `%%{ ${endContent} }%%`;
-
 		const content = "block content";
 
-		block = new Block(
-			{
-				start: 0,
-				end: startOuterContent.length,
-				content: startContent,
-				outerContent: startOuterContent,
-				escapes: [],
-			},
-			0,
-			1,
-			null,
-			{
-				start: startOuterContent.length + content.length,
-				end:
-					startOuterContent.length +
-					content.length +
-					endOuterContent.length,
-				content: endContent,
-				outerContent: endOuterContent,
-				escapes: [],
-			},
-			4,
-			content
-		);
+		block = createBlock(content);
 	});
 
 	test("a block can be cached successfully", async () => {

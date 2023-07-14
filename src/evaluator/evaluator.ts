@@ -1,11 +1,5 @@
-import Generator, { GeneratorBuilder } from "../generator/generator";
-import { dedent } from "../utils/misc";
-
-const PREFIX_COMMENT_TOKEN = "%%";
-
-interface EvaluatorContext {
-	mp: GeneratorBuilder;
-}
+import Generator from "../generator/generator";
+import logger from "../utils/logger";
 
 interface EvaluatorLocals {
 	mp: string;
@@ -18,6 +12,7 @@ export default class Evaluator {
 
 	constructor() {
 		this.locals = {
+			app: "undefined",
 			mp: "this.mp",
 		};
 
@@ -31,9 +26,7 @@ export default class Evaluator {
 	) {
 		const AsyncFunction = async function () {}.constructor;
 
-		let local = dedent`
-            const app = undefined;
-        `;
+		let local = "";
 
 		Object.keys(locals).forEach((key) => {
 			local += `\nconst ${key} = ${locals[key]};\n`;
@@ -42,35 +35,28 @@ export default class Evaluator {
 		const f = AsyncFunction(`"use strict"; ${local} ${code}`).bind(context);
 		return f as () => Promise<void>;
 	}
-
-	private createContext(ctx: { mp: GeneratorBuilder }): EvaluatorContext {
-		return {
-			...ctx,
-		};
-	}
-
-	private prefixComment(code: string) {
-		return code
-			.split("\n")
-			.map((line) => {
-				if (line.trim().startsWith(PREFIX_COMMENT_TOKEN)) {
-					return `//${line}}`;
-				}
-				return line;
-			})
-			.join("\n");
-	}
-
 	async run(generator: Generator, code: string) {
-		const preCtx = this.createContext({ mp: generator.builder() });
+		const builder = generator.builder();
+
+		const preCtx = builder.context;
 		const context = Object.assign({}, this.userContext, preCtx);
 
-		const prefixedCode = this.prefixComment(code);
-		const scope = this.scopedEval(context, this.locals, prefixedCode);
+		const scope = this.scopedEval(context, this.locals, code);
 
 		try {
+			await generator.onEvaluation(
+				"before",
+				builder.builder,
+				builder.contexts
+			);
 			await scope();
+			await generator.onEvaluation(
+				"after",
+				builder.builder,
+				builder.contexts
+			);
 		} catch (e) {
+			logger.devWarnNotice("Error while evaluating code", e);
 			// wrap this in custom error
 			throw e;
 		}

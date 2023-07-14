@@ -1,3 +1,6 @@
+import { TFile } from "obsidian";
+
+import { createBlock } from "../../../tests/utils";
 import Generator, { GeneratorBuilder } from "../generator";
 import TextBuilder from "./text";
 
@@ -6,22 +9,22 @@ describe("Text builder", () => {
 	let builder: GeneratorBuilder;
 
 	beforeEach(() => {
-		generator = new Generator();
+		generator = new Generator(new TFile(), createBlock());
 
 		generator.registerBuilder(new TextBuilder());
 
-		builder = generator.builder();
+		builder = generator.builder().builder;
 	});
 
 	describe("text", () => {
-		it("basic text", () => {
+		test("basic text", async () => {
 			builder.text("test");
 			expect(generator.compile()).toBe("test");
 		});
 	});
 
 	describe("newline", () => {
-		it("basic text newline", () => {
+		test("basic text newline", async () => {
 			builder.newline();
 			builder.text("test");
 			builder.newLine();
