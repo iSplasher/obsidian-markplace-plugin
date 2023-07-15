@@ -1,14 +1,14 @@
-import { TFile } from 'obsidian';
+import { MarkdownView } from "obsidian";
 
-import { createBlock } from '../../tests/utils';
-import Builder from './base';
-import Generator from './generator';
+import { createBlock } from "../../tests/utils";
+import Builder from "./base";
+import Generator from "./generator";
 
 describe("Generator", () => {
 	let generator: Generator;
 
 	beforeEach(() => {
-		generator = new Generator(new TFile(), createBlock());
+		generator = new Generator(new MarkdownView(null as any), createBlock());
 	});
 
 	test("can register builder", async () => {
@@ -223,5 +223,4 @@ describe("Generator", () => {
 		builder1.text("test1");
 		expect(generator.compile()).toBe("1");
 	});
-
 });

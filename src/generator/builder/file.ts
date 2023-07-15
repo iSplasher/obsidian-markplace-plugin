@@ -1,5 +1,12 @@
 import Builder from "../base";
 
+interface FileProp {
+	name: string;
+	basename: string;
+	path: string;
+	content: FileBuilder["content"];
+}
+
 export default class FileBuilder extends Builder {
 	constructor() {
 		super();
@@ -13,15 +20,16 @@ export default class FileBuilder extends Builder {
 		);
 	}
 
-	get file() {
+	get file(): FileProp {
 		return {
-			name: this.ctx.tfile.name,
-			path: this.ctx.tfile.path,
+			name: this.ctx.view.file.name,
+			basename: this.ctx.view.file.basename,
+			path: this.ctx.view.file.path,
 			content: this.content,
 		};
 	}
 
 	async content() {
-		return await this.app.vault.read(this.ctx.tfile);
+		return await this.app.vault.read(this.ctx.view.file);
 	}
 }

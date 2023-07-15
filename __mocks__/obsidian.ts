@@ -93,6 +93,7 @@ export class App {
 
 
 export class MarkdownView {
+	file = new TFile();
 	containerEl = document.createElement("div");
 
 	constructor() {}

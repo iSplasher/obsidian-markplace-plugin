@@ -1,4 +1,4 @@
-import { TFile } from "obsidian";
+import { MarkdownView } from "obsidian";
 
 import { createBlock } from "../../tests/utils";
 import Builder from "../generator/base";
@@ -11,7 +11,7 @@ describe("Evaluating code", () => {
 
 	beforeEach(() => {
 		evaluator = new Evaluator();
-		generator = new Generator(new TFile(), createBlock());
+		generator = new Generator(new MarkdownView(null as any), createBlock());
 	});
 
 	test("can evaluate simple code", async () => {

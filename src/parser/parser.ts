@@ -329,7 +329,7 @@ export class Block {
 			padEnd = " ";
 		} else {
 			padStart = "\n";
-			padEnd = "\n";
+			padEnd = "";
 		}
 
 		// which tag to use as reference
@@ -366,16 +366,9 @@ export class Block {
 			return false;
 		}
 
-		let padStart = "";
-		let padEnd = "";
+		const padStart = "";
+		const padEnd = "";
 
-		if (this.singleLine()) {
-			padStart = "";
-			padEnd = "";
-		} else {
-			padStart = "\n";
-			padEnd = "\n";
-		}
 
 		const renderContent = padStart + content + padEnd;
 

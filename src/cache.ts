@@ -97,7 +97,7 @@ export default class Cache {
 				if (keys.has(key)) {
 					logger.warnNotice(
 						`Duplicate block id '${key}' detected in the note ${basename}.`,
-						" Please make sure that all block ids are unique to allow caching to work properly."
+						" Please make sure that all block id's are unique to allow caching to work properly."
 					);
 
 					// rmeove block from cache

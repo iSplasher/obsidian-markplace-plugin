@@ -1,10 +1,10 @@
-import { MarkdownView, TFile, Vault } from "obsidian";
+import { MarkdownView, Vault } from 'obsidian';
 
-import { constant } from "../constants";
-import Evaluator from "../evaluator/evaluator";
-import Generator from "../generator/generator";
-import { Block, Parsed } from "../parser/parser";
-import logger from "../utils/logger";
+import { constant } from '../constants';
+import Evaluator from '../evaluator/evaluator';
+import Generator from '../generator/generator';
+import { Block, Parsed } from '../parser/parser';
+import logger from '../utils/logger';
 
 export default class MarkPlaceRenderer {
 	constructor(public vault: Vault) {
@@ -33,8 +33,9 @@ export default class MarkPlaceRenderer {
 		const evaluator = new Evaluator();
 
 		for (const block of blocks) {
-			await this.renderBlock(currentFile, block, evaluator);
+			await this.renderBlock(view, block, evaluator);
 		}
+
 
 		logger.devNotice("Rendered", blocks.length, "blocks");
 
@@ -84,12 +85,11 @@ export default class MarkPlaceRenderer {
 			}
 
 			logger.devNotice("Wrote content to", currentFile.path);
-			console.log(newContent);
 			return newContent;
 		});
 	}
 
-	async renderBlock(file: TFile, block: Block, evaluator: Evaluator) {
+	async renderBlock(view: MarkdownView, block: Block, evaluator: Evaluator) {
 		if (block.hasRendered()) {
 			return block;
 		}
@@ -99,7 +99,7 @@ export default class MarkPlaceRenderer {
 			block.setRender(true);
 		} else {
 			try {
-				const generator = new Generator(file, block);
+				const generator = new Generator(view, block);
 				generator
 					.builtinBuilders()
 					.forEach((b) => generator.registerBuilder(b));

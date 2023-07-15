@@ -64,7 +64,9 @@ export default class MarkPlaceSettingTab extends PluginSettingTab {
 		);
 
 		descEl.append(
-			"MarkPlace is a templating plugin that allows you to render text directly within your markdown files.",
+			"MarkPlace is a templating plugin that allows you to render ",
+			descEl.createEl("em", { text: "in place" }),
+			", directly inside your notes.",
 			descEl.createEl("br"),
 			descEl.createEl("br"),
 			descEl.createEl("b", { text: "Usage:" }),

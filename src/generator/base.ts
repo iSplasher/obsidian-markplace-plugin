@@ -1,4 +1,4 @@
-import * as Obsidian from "obsidian";
+import * as Obsidian from 'obsidian';
 
 import type { GeneratorBuilder } from "./generator";
 
@@ -8,7 +8,7 @@ export interface BuilderEvalContext {
 
 	readonly mp: GeneratorBuilder;
 	readonly ctx: {
-		tfile: Obsidian.TFile;
+		view: Obsidian.MarkdownView;
 		blockId: string;
 		blockContent: string;
 	};

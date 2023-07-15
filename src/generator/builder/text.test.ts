@@ -1,4 +1,4 @@
-import { TFile } from "obsidian";
+import { MarkdownView } from "obsidian";
 
 import { createBlock } from "../../../tests/utils";
 import Generator, { GeneratorBuilder } from "../generator";
@@ -9,7 +9,7 @@ describe("Text builder", () => {
 	let builder: GeneratorBuilder;
 
 	beforeEach(() => {
-		generator = new Generator(new TFile(), createBlock());
+		generator = new Generator(new MarkdownView(null as any), createBlock());
 
 		generator.registerBuilder(new TextBuilder());
 

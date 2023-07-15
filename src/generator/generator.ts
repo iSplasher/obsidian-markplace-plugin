@@ -4,6 +4,7 @@ import { constant } from '../constants';
 import { Block } from '../parser/parser';
 import logger from '../utils/logger';
 import Builder, { BuilderEvalContext } from './base';
+import DomBuilder from "./builder/dom";
 import FileBuilder from './builder/file';
 import TextBuilder from './builder/text';
 
@@ -22,7 +23,7 @@ export default class Generator {
 	>;
 	private fieldOverrides: Record<string, () => any>;
 
-	constructor(readonly file: Obsidian.TFile, readonly block: Block) {
+	constructor(readonly view: Obsidian.MarkdownView, readonly block: Block) {
 		this.content = "";
 		this.baseBuilder = new Builder();
 		this.builders = [];
@@ -70,7 +71,7 @@ export default class Generator {
 	}
 
 	builtinBuilders() {
-		return [new FileBuilder(), new TextBuilder()];
+		return [new FileBuilder(), new TextBuilder(), new DomBuilder()];
 	}
 
 	registerBuilder(builder: Builder) {
@@ -89,7 +90,7 @@ export default class Generator {
 			app: constant?.app as Obsidian.App,
 			mp: genBuilder,
 			ctx: {
-				tfile: this.file,
+				view: this.view,
 				blockId: this.block.id,
 				blockContent: this.block.preContent,
 			},

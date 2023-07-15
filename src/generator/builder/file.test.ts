@@ -1,4 +1,4 @@
-import { TFile } from "obsidian";
+import { MarkdownView } from "obsidian";
 
 import { createBlock, setupConstant } from "../../../tests/utils";
 import { constant } from "../../constants";
@@ -14,7 +14,7 @@ describe("File builder", () => {
 	beforeEach(() => {
 		setupConstant();
 		evaluator = new Evaluator();
-		generator = new Generator(new TFile(), createBlock());
+		generator = new Generator(new MarkdownView(null as any), createBlock());
 
 		generator.registerBuilder(new FileBuilder());
 
