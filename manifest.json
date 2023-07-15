@@ -1,7 +1,7 @@
 {
 	"id": "markplace",
 	"name": "MarkPlace",
-	"version": "0.0.0",
+	"version": "0.1.0",
 	"minAppVersion": "0.15.0",
 	"description": "An Obsidian template plugin.",
 	"author": "Twiddly",
