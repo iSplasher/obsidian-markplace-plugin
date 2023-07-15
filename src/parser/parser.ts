@@ -7,22 +7,22 @@ export interface ParserContent {
 	content: string;
 }
 
-const PARSER_TOKEN = {
+export const PARSER_TOKEN = {
 	tagStart: "%%{",
 	tagEnd: "}%%",
 	escape: "\\",
 };
 
-const END_TOKEN = "end";
+export const END_TOKEN = "end";
 
-const SEPARATOR_TOKEN = "---";
+export const SEPARATOR_TOKEN = "-|-";
 
 const STRIP_COMMENT_TOKEN = "%%";
 
 const IGNORE_COMMENT_TOKEN = "" as string; // empty disables this atm
 const IGNORE_COMMENT_TERMINATOR = "\n"; // ignore until next line
 
-enum TAG_TYPE {
+export enum TAG_TYPE {
 	START,
 	START_IMMEDIATE,
 	START_DELAYED,
@@ -30,7 +30,7 @@ enum TAG_TYPE {
 	END,
 }
 
-const TAG_MODIFIER_TOKEN = {
+export const TAG_MODIFIER_TOKEN = {
 	[TAG_TYPE.START]: "",
 	[TAG_TYPE.START_IMMEDIATE]: "!",
 	[TAG_TYPE.START_DELAYED]: "*",

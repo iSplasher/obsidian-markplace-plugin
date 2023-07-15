@@ -2,6 +2,11 @@ import { debounce, Debouncer } from "obsidian";
 
 import { constant } from "../constants";
 
+// https://stackoverflow.com/questions/3446170/escape-string-for-use-in-javascript-regex
+export function escapeRegExp(s: string) {
+	return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); // $& means the whole matched string
+}
+
 export function argsort(array: any[]): number[] {
 	const indices = array.map((value, index) => index);
 

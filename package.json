@@ -17,7 +17,11 @@
 	},
 	"license": "MIT",
 	"devDependencies": {
+		"@codemirror/state": "^6.0.0",
+		"@codemirror/language": "^6.0.0",
+		"@codemirror/view": "^6.0.0",
 		"@testing-library/jest-dom": "^5.16.5",
+		"@types/codemirror": "^5.60.8",
 		"@types/jest": "^29.5.3",
 		"@types/node": "^18.16.19",
 		"@types/sizzle": "^2.3.3",

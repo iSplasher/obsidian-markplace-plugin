@@ -2,7 +2,7 @@ import { createBlock } from "../../tests/utils";
 import { dedent } from "../utils/misc";
 import { Block, Parsed } from "./parser";
 
-const SEPARATOR_TOKEN = "---";
+const SEPARATOR_TOKEN = "-|-";
 
 describe("Tag location parsing", () => {
 	test("simple tag is parsed", async () => {

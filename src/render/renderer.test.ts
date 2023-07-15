@@ -4,7 +4,7 @@ import { Parsed } from '../parser/parser';
 import { dedent } from '../utils/misc';
 import MarkPlaceRenderer from './renderer';
 
-const SEPARATOR_TOKEN = "---";
+const SEPARATOR_TOKEN = "-|-";
 
 describe("Rendering blocks", () => {
 	let view: MarkdownView;

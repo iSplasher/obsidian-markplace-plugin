@@ -8,6 +8,8 @@ import MarkPlaceSettingTab, {
 	MarkPlacePluginSettings,
 } from "./components/settings";
 import { constant } from "./constants";
+import Mode from "./editor/mode/mode";
+import { emojiListPlugin } from "./editor/plugin";
 import Emitter from "./events";
 import MarkPlace from "./markplace";
 import { MarkPlaceError } from "./utils/error";
@@ -15,6 +17,7 @@ import { MarkPlaceError } from "./utils/error";
 export default class MarkPlacePlugin extends Plugin {
 	settings: MarkPlacePluginSettings;
 	markplace?: MarkPlace;
+	mode?: Mode;
 
 	async onload() {
 		constant.loaded = true;
@@ -93,6 +96,10 @@ export default class MarkPlacePlugin extends Plugin {
 			window.setInterval(() => console.log("setInterval"), 5 * 60 * 1000)
 		);
 
+		this.registerEditorExtension([emojiListPlugin]);
+		// @ts-expect-error
+		this.mode = new Mode(this, window.CodeMirror);
+		await this.mode.register();
 		this.markplace = new MarkPlace(this);
 		await this.markplace.onload();
 	}
