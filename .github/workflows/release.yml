@@ -43,6 +43,12 @@ jobs:
               echo "Will create tag ${{ env.TAG_NAME }} on release."
               echo "PUSH_TAG=true" >> $GITHUB_ENV
           fi
+      - name: Force release
+        if: "contains(github.event.head_commit.message, '[force-release]')"
+        run: |
+          npm run version
+          echo "Will create tag ${{ env.TAG_NAME }} on release."
+          echo "PUSH_TAG=true" >> $GITHUB_ENV
 
       - name: Cache node modules
         uses: actions/cache@v3
@@ -67,12 +73,14 @@ jobs:
         env:
           OUTPUT: CHANGELOG.md
 
+      - name: Setup git user
+        run: |
+          git config --local user.name "Github Actions"
+          git config --local user.email "actions@github.com"
 
       - name: Commit and push changelog
         run: |
           if ! git diff --quiet CHANGELOG.md; then
-            git config --local user.name "Github Actions"
-            git config --local user.email "actions@github.com"
             git add CHANGELOG.md
             git commit -m "Update CHANGELOG.md"
             git push
@@ -83,10 +91,8 @@ jobs:
       - name: Create tag and push
         if: env.PUSH_TAG == 'true'
         run: |
-          git config --local user.name "Github Actions"
-          git config --local user.email "actions@github.com"
           git commit --allow-empty -m "Release ${{ env.TAG_NAME }}"
-          git tag ${{ env.TAG_NAME }}
+          git tag ${{ env.TAG_NAME }} || true
           git push
           git push origin ${{ env.TAG_NAME }}
 
