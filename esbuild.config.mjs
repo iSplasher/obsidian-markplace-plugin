@@ -10,7 +10,7 @@ if you want to view the source, please visit the github repository of this plugi
 */
 `;
 
-const prod = process.argv[2] === "production";
+const prod = process.env.NODE_ENV === "production";
 
 // Quick'n'Dirty Rename Plugin
 
@@ -71,7 +71,7 @@ const context = await esbuild.context({
 	treeShaking: true,
 	outfile: "main.js",
 	define: {
-		"process.env.NODE_ENV": '"production"',
+		"process.env.NODE_ENV": prod ? '"production"' : '"development"',
 	},
 	plugins: [
 		sassPlugin({

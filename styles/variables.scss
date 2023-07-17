@@ -1,0 +1,7 @@
+@use "sass:color";
+
+$tagAlpha: 0.35;
+
+$lineBgColor: var(--background-primary-alt);
+
+$separatorTagColor: color.change(#fc4384, $alpha: $tagAlpha);

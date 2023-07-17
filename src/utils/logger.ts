@@ -61,11 +61,9 @@ export default class logger {
 					.join(" ");
 		}
 
-		if (!constant.settings?.debug) {
-			if (m) return;
-			const l = MESSAGES.unshift(m);
-			if (l > 100) MESSAGES.pop();
-		}
+		if (MESSAGES.includes(m)) return;
+		const l = MESSAGES.unshift(m);
+		if (l > 100) MESSAGES.pop();
 
 		new MarkPlaceNotice(m, timeout);
 	}

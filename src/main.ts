@@ -9,6 +9,8 @@ import MarkPlaceSettingTab, {
 } from "./components/settings";
 import { constant } from "./constants";
 import Mode from "./editor/mode/mode";
+import { getPostContentExtenstions } from "./editor/postContent";
+import { getSeparatorExtenstions } from "./editor/separator";
 import Emitter from "./events";
 import MarkPlace from "./markplace";
 import { MarkPlaceError } from "./utils/error";
@@ -24,8 +26,6 @@ export default class MarkPlacePlugin extends Plugin {
 		constant.events = new Emitter();
 
 		await this.loadSettings();
-
-		console.log("isDev", constant.isDev, process.env.NODE_ENV);
 
 		if (constant.isDev) {
 			// This creates an icon in the left ribbon.
@@ -102,11 +102,16 @@ export default class MarkPlacePlugin extends Plugin {
 		// This adds a settings tab so the user can configure various aspects of the plugin
 		this.addSettingTab(new MarkPlaceSettingTab(this.app, this));
 
-		this.registerEditorExtension([]);
 		// @ts-expect-error
 		this.mode = new Mode(this, window.CodeMirror);
 		await this.mode.register();
 		this.markplace = new MarkPlace(this);
+
+		this.registerEditorExtension([
+			...getPostContentExtenstions(this.markplace),
+			...getSeparatorExtenstions(this.markplace),
+		]);
+
 		await this.markplace.onload();
 	}
 

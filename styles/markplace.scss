@@ -1,4 +1,5 @@
 @use "./highlight"as hl;
+@use "./variables"as v;
 
 .markplace-modal {
 
@@ -42,4 +43,44 @@
     }
 
 
+}
+
+@mixin markplace-editor-widget {
+    font-size: smaller;
+    padding: 0.2rem;
+    border: 1px solid var(--background-secondary-alt);
+    font-family: var(--font-monospace);
+    line-height: 1.3;
+    margin: 0 0.2rem;
+}
+
+.markplace-block-post-content {
+    @include markplace-editor-widget;
+    cursor: pointer;
+}
+
+.markplace-block-separator {
+    @include markplace-editor-widget;
+    color: v.$separatorTagColor;
+}
+
+.markplace-tooltip {
+
+    &.cm-tooltip {
+        background-color: var(--background-secondary-alt);
+        border: 1px solid var(--background-secondary-alt);
+        border-radius: 5px;
+        padding: 0.5rem;
+        font-size: 0.8rem;
+        line-height: 1.3;
+        box-shadow: 0 0 5px var(--background-secondary-alt);
+        max-width: 20rem;
+        overflow-wrap: break-word;
+        word-wrap: break-word;
+        hyphens: auto;
+        white-space: pre-wrap;
+        text-align: left;
+    }
+
+    .markplace-tooltip-container {}
 }

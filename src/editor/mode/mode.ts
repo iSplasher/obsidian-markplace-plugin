@@ -44,8 +44,10 @@ const escapedTagModifierTokens = TAG_MODIFIER_TOKENS.map(escapeRegExp);
 const escapedTokenEscape = escapeRegExp(PARSER_TOKEN.escape);
 const escapedTagStart = escapeRegExp(PARSER_TOKEN.tagStart);
 const escapedTagEnd = escapeRegExp(PARSER_TOKEN.tagEnd);
+const escapedEndToken = escapeRegExp(END_TOKEN);
+const escapedSepToken = escapeRegExp(SEPARATOR_TOKEN);
 
-const TOKEN_REGEX = {
+export const TOKEN_REGEX = {
 	tagStart: new RegExp(`(?<!${escapedTokenEscape})${escapedTagStart}`),
 	tagEnd: new RegExp(`(?<!${escapedTokenEscape})${escapedTagEnd}`),
 	tagModifierStart: new RegExp(
@@ -55,8 +57,8 @@ const TOKEN_REGEX = {
 
 const TAG_CONTENT_REGEX = {
 	start: new RegExp(`(.*)${TOKEN_REGEX.tagEnd.source}`),
-	end: new RegExp(`\\s*${END_TOKEN}\\s*${TOKEN_REGEX.tagEnd.source}`),
-	sep: new RegExp(`\\s*${SEPARATOR_TOKEN}\\s*${TOKEN_REGEX.tagEnd.source}`),
+	end: new RegExp(`\\s*${escapedEndToken}\\s*${TOKEN_REGEX.tagEnd.source}`),
+	sep: new RegExp(`\\s*${escapedSepToken}\\s*${TOKEN_REGEX.tagEnd.source}`),
 };
 
 const OBS_COMMENT_TOKEN_REGEX = /%%/;

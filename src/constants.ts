@@ -15,6 +15,15 @@ export const CLASSES = {
 	stat: "markplace-stat",
 	statValue: "markplace-stat-value",
 
+	// block
+	blockPostContent: "markplace-block-post-content",
+	blockSeparator: "markplace-block-separator",
+
+	// tooltip
+	tooltip: "markplace-tooltip",
+	tooltipContainer: "markplace-tooltip-container",
+	tooltipContent: "markplace-tooltip-content",
+
 	// misc classes
 	indent: "markplace-indent",
 };

@@ -21,9 +21,14 @@ jobs:
         run: |
           echo "PLUGIN_ID=$(cat manifest.json | jq -r '.id')" >> $GITHUB_ENV
           echo "PLUGIN_NAME=$(cat manifest.json | jq -r '.name')" >> $GITHUB_ENV
-          echo "PLUGIN_VERSION=$(cat manifest.json | jq -r '.version')" >> $GITHUB_ENV
-          echo "TAG_NAME=$(cat manifest.json | jq -r '.version')" >> $GITHUB_ENV
+          echo "PLUGIN_VERSION=$(cat package.json | jq -r '.version')" >> $GITHUB_ENV
+          echo "TAG_NAME=$(cat package.json | jq -r '.version')" >> $GITHUB_ENV
 
+      - uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+      
       # check if tag exists and fail if not [force-release] in commit message
       - name: Check if tag exists
         id: check_tag
@@ -34,15 +39,10 @@ jobs:
               echo "Tag ${{ env.TAG_NAME }} already exists; Use [force-release] to skip check."
               exit 1
           else
+              npm run version
               echo "Will create tag ${{ env.TAG_NAME }} on release."
               echo "PUSH_TAG=true" >> $GITHUB_ENV
           fi
-
-
-      - uses: actions/setup-node@v3
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: "npm"
 
       - name: Cache node modules
         uses: actions/cache@v3
