@@ -40,6 +40,7 @@ jobs:
               exit 1
           else
               npm run version
+              git add versions.js manifest.json manifest-beta.json
               echo "Will create tag ${{ env.TAG_NAME }} on release."
               echo "PUSH_TAG=true" >> $GITHUB_ENV
           fi
@@ -47,6 +48,7 @@ jobs:
         if: "contains(github.event.head_commit.message, '[force-release]')"
         run: |
           npm run version
+          git add versions.js manifest.json manifest-beta.json
           echo "Will create tag ${{ env.TAG_NAME }} on release."
           echo "PUSH_TAG=true" >> $GITHUB_ENV
 
