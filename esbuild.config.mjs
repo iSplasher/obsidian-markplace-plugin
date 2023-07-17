@@ -81,6 +81,8 @@ const context = await esbuild.context({
 	],
 });
 
+console.log("Building..." + (prod ? " (production)" : " (development)"));
+
 if (prod) {
 	await context.rebuild({});
 	process.exit(0);
