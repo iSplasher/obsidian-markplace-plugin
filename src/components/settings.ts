@@ -1,6 +1,6 @@
 import { App, PluginSettingTab, Setting } from "obsidian";
 
-import { CLASSES } from "../constants";
+import { CLASSES, constant } from "../constants";
 
 import type MarkPlacePlugin from "../main";
 export const DEFAULT_SETTINGS = {
@@ -9,6 +9,7 @@ export const DEFAULT_SETTINGS = {
 	cache: true,
 	cachePath: "",
 	liveRendering: false,
+	debug: constant.isDev,
 };
 
 export type MarkPlacePluginSettings = typeof DEFAULT_SETTINGS;
@@ -169,6 +170,21 @@ export default class MarkPlaceSettingTab extends PluginSettingTab {
 						) => {
 							await this.plugin.saveSettings({
 								liveRendering: value,
+							});
+						}
+					);
+			});
+
+		new Setting(containerEl)
+			.setName("Debug")
+			.setDesc("Enables debug logging and extra error information.")
+			.addToggle((toggle) => {
+				toggle
+					.setValue(this.plugin.settings.liveRendering)
+					.onChange(
+						async (value: MarkPlacePluginSettings["debug"]) => {
+							await this.plugin.saveSettings({
+								debug: value,
 							});
 						}
 					);

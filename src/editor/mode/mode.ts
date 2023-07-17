@@ -386,6 +386,6 @@ export default class Mode {
 			this.modeFactory(this.cm, ...args)
 		);
 
-		logger.devDebugNotice("Registered marplace mode");
+		logger.devDebugNotice("Registered MarkPlace editor mode");
 	}
 }

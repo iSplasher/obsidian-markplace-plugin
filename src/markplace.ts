@@ -37,6 +37,11 @@ export default class MarkPlace {
 
 	async onload() {
 		this.loaded = true;
+
+		if (this.plugin.settings.debug) {
+			logger.debugNotice("Debug mode enabled");
+		}
+
 		await this.registerEvents();
 
 		this.plugin.registerMarkdownPostProcessor(

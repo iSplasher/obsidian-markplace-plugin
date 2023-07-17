@@ -4,7 +4,12 @@ import { MarkPlaceConsoleError, MarkPlaceError } from "./error";
 
 type Msg = string | any;
 
+const DEV_NOTICE_TIMEOUT = 15000;
+
 const NOTICE_LOG_TIMEOUT = 10000;
+
+const MESSAGES: string[] = [];
+
 export default class logger {
 	private static call(func: (...args: any[]) => void, ...args: any[]) {
 		if (process.env.NODE_ENV !== "test") {
@@ -13,7 +18,7 @@ export default class logger {
 	}
 
 	static debug(message: Msg, ...messages: Msg[]): void {
-		if (!constant.isDev) return;
+		if (!constant?.settings?.debug) return;
 		this.call(console.debug, message, ...messages);
 	}
 
@@ -56,6 +61,12 @@ export default class logger {
 					.join(" ");
 		}
 
+		if (!constant.settings?.debug) {
+			if (m) return;
+			const l = MESSAGES.unshift(m);
+			if (l > 100) MESSAGES.pop();
+		}
+
 		new MarkPlaceNotice(m, timeout);
 	}
 
@@ -83,8 +94,8 @@ export default class logger {
 
 	// only shows notice in dev mode
 	static devNotice(message: Msg, ...messages: Msg[]) {
-		if (constant.isDev) {
-			this.notice(5000, message, ...messages);
+		if (constant.isDev && constant.settings?.debug) {
+			this.notice(DEV_NOTICE_TIMEOUT, message, ...messages);
 		}
 	}
 
