@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+#### [0.2.0] - 2023-07-17
+
+##### Features ✨
+
+- Add editor decorations;
+
 #### [0.1.0] - 2023-07-15
 
 ##### Bug Fixes 🐞
