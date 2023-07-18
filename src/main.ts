@@ -104,12 +104,12 @@ export default class MarkPlacePlugin extends Plugin {
 
 		// @ts-expect-error
 		this.mode = new Mode(this, window.CodeMirror);
-		await this.mode.register();
 		this.markplace = new MarkPlace(this);
 
 		this.registerEditorExtension([
 			...getPostContentExtenstions(this.markplace),
 			...getSeparatorExtenstions(this.markplace),
+			this.mode.register(),
 		]);
 
 		await this.markplace.onload();
@@ -119,6 +119,10 @@ export default class MarkPlacePlugin extends Plugin {
 		constant.loaded = false;
 		this.markplace?.onunload?.();
 		this.markplace = undefined;
+
+		if (constant?.events) {
+			constant.events.removeAllListeners();
+		}
 	}
 
 	async loadSettings() {

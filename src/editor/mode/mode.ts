@@ -95,19 +95,34 @@ export default class Mode {
 		return true;
 	}
 
-	async register(): Promise<void> {
-		await this.registerCodeMirrorMode();
-		// this.plugin.registerEditorSuggest(new Autocomplete());
+	register() {
+		// cm-editor-syntax-highlight-obsidian plugin
+		// https://codemirror.net/doc/manual.html#modeapi
+		// https://codemirror.net/mode/diff/diff.js
+		// https://codemirror.net/demo/mustache.html
+		// https://marijnhaverbeke.nl/blog/codemirror-mode-system.html
 
-		// Selectively enable syntax highlighting via per-platform preferences.
-		if (this.shouldHighlight()) {
-			this.plugin.registerEditorExtension(
-				StreamLanguage.define(
-					this.cm.getMode({}, { name: modeId }) as any
-				)
+		this.jsMode = this.cm.getMode({}, "javascript");
+		if (this.jsMode.name === "null") {
+			MarkPlaceError.notice(
+				"Javascript syntax mode couldn't be found, can't enable syntax highlighting."
 			);
-			logger.devDebugNotice("Enabled markplace mode");
 		}
+
+		// Custom overlay mode used to handle edge cases
+		// @ts-ignore
+		this.overlayMode = this.cm.customOverlayMode;
+		if (this.overlayMode == null) {
+			MarkPlaceError.notice(
+				"Couldn't find customOverlayMode, can't enable syntax highlighting."
+			);
+		}
+
+		this.registerCodeMirrorMode();
+
+		return StreamLanguage.define(
+			this.modeFactory(this.cm, {}, undefined) as any
+		);
 	}
 
 	async jump_to_next_cursor_location(
@@ -129,12 +144,14 @@ export default class Mode {
 		config: EditorConfiguration,
 		modeOptions: any
 	): CodeMirrorMode<any> {
+		const highlight = this.shouldHighlight();
 		const jsMode = this.jsMode;
 
 		const cx = (...args: Parameters<typeof _cx>) =>
 			_cx(CLASSES.command, CLASSES.inlineBg, ...args);
 
 		const markplaceMode: CodeMirrorMode<ModeState> = {
+			name: modeId,
 			startState: function () {
 				const jsState = cm.startState(jsMode) as JSModeState;
 				return {
@@ -160,12 +177,18 @@ export default class Mode {
 				return new_state;
 			},
 			blankLine: function (state) {
+				if (!highlight) return null;
 				if (state.blockContentType) {
 					return `line-background-${CLASSES.lineBg}`;
 				}
 				return null;
 			},
 			token: function (stream, state) {
+				if (!highlight) {
+					stream.skipToEnd();
+					return null;
+				}
+
 				if (state.contentTagType !== null) {
 					// inside of tag
 					if (!state.blockContent && !state.blockContentType) {
@@ -354,36 +377,7 @@ export default class Mode {
 		);
 	}
 
-	async registerCodeMirrorMode(): Promise<void> {
-		// cm-editor-syntax-highlight-obsidian plugin
-		// https://codemirror.net/doc/manual.html#modeapi
-		// https://codemirror.net/mode/diff/diff.js
-		// https://codemirror.net/demo/mustache.html
-		// https://marijnhaverbeke.nl/blog/codemirror-mode-system.html
-
-		// If no configuration requests highlighting we should bail.
-		if (!this.shouldHighlight()) {
-			return;
-		}
-
-		this.jsMode = this.cm.getMode({}, "javascript");
-		if (this.jsMode.name === "null") {
-			MarkPlaceError.notice(
-				"Javascript syntax mode couldn't be found, can't enable syntax highlighting."
-			);
-			return;
-		}
-
-		// Custom overlay mode used to handle edge cases
-		// @ts-ignore
-		this.overlayMode = this.cm.customOverlayMode;
-		if (this.overlayMode == null) {
-			MarkPlaceError.notice(
-				"Couldn't find customOverlayMode, can't enable syntax highlighting."
-			);
-			return;
-		}
-
+	registerCodeMirrorMode() {
 		this.cm.defineMode(modeId, (...args) =>
 			this.modeFactory(this.cm, ...args)
 		);

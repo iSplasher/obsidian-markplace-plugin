@@ -48,7 +48,7 @@
 @mixin markplace-editor-widget {
     font-size: smaller;
     padding: 0.2rem;
-    border: 1px solid var(--background-secondary-alt);
+    border: 1px solid var(--background-modifier-border);
     font-family: var(--font-monospace);
     line-height: 1.3;
     margin: 0 0.2rem;
@@ -67,14 +67,22 @@
 .markplace-tooltip {
 
     &.cm-tooltip {
-        background-color: var(--background-secondary-alt);
-        border: 1px solid var(--background-secondary-alt);
+        background-color: var(--background-primary-alt);
+        border: 2px solid var(--background-modifier-active-border);
         border-radius: 5px;
-        padding: 0.5rem;
         font-size: 0.8rem;
+        box-shadow: 0 0 5px var(--background-secondary);
+        max-width: 50rem;
+
+    }
+
+    .markplace-tooltip-container {}
+
+    .markplace-tooltip-content {
         line-height: 1.3;
-        box-shadow: 0 0 5px var(--background-secondary-alt);
-        max-width: 20rem;
+        padding: 0.5rem;
+        max-height: 40rem;
+        overflow: auto;
         overflow-wrap: break-word;
         word-wrap: break-word;
         hyphens: auto;
@@ -82,5 +90,42 @@
         text-align: left;
     }
 
-    .markplace-tooltip-container {}
+    .markplace-tooltip-target {}
+
+    .markplace-tooltip-button-menu {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.5rem;
+        border-bottom: 1px solid var(--background-secondary-alt);
+        border-top-left-radius: 5px;
+        border-top-right-radius: 5px;
+    }
+
+    .markplace-tooltip-button {
+        background-color: var(--interactive-normal);
+        flex: 1;
+        padding: 0.5rem;
+        border-radius: 2px;
+        text-align: center;
+        cursor: pointer;
+        border-right: 1px solid var(--background-modifier-border);
+
+        &:last-child {
+            border-right: none;
+        }
+
+        &:hover {
+            background-color: var(--interactive-hover);
+        }
+
+        &:active {
+            background-color: var(--background-modifier-active-border);
+        }
+
+        &:focus {
+            background-color: var(--background-modifier-border-focus);
+
+        }
+    }
 }

@@ -21,8 +21,11 @@ export const CLASSES = {
 
 	// tooltip
 	tooltip: "markplace-tooltip",
+	tooltipTarget: "markplace-tooltip-target",
 	tooltipContainer: "markplace-tooltip-container",
 	tooltipContent: "markplace-tooltip-content",
+	tooltipButtonMenu: "markplace-tooltip-button-menu",
+	tooltipButton: "markplace-tooltip-button",
 
 	// misc classes
 	indent: "markplace-indent",

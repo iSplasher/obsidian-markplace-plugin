@@ -3,6 +3,7 @@ import cx from "classnames";
 import { RegExpCursor } from "@codemirror/search";
 import {
 	EditorState,
+	Facet,
 	RangeSetBuilder,
 	StateEffect,
 	StateField,
@@ -24,7 +25,7 @@ import {
 import { CLASSES } from "../constants";
 import MarkPlace from "../markplace";
 import { END_TOKEN, SEPARATOR_TOKEN } from "../parser/parser";
-import { escapeRegExp } from "../utils/misc";
+import { equalSets, escapeRegExp } from "../utils/misc";
 import { TOKEN_REGEX } from "./mode/mode";
 
 const escapedEndToken = escapeRegExp(END_TOKEN);
@@ -41,7 +42,7 @@ export const TAG_REGEX = {
 
 const CONTENT_REGEX = {
 	postContent: new RegExp(
-		`(?<=${TAG_REGEX.sep.source})([\\s\\S]+)(?=${TAG_REGEX.end.source})`,
+		`(?<=${TAG_REGEX.sep.source})([\\s\\S]*?)(?=${TAG_REGEX.end.source})`,
 		"g"
 	),
 };
@@ -64,11 +65,28 @@ class PostContentWidget extends WidgetType {
 
 		el.onclick = () => {
 			view.dispatch({
-				effects: updateBlockPostContentEffect.of([
-					this.from,
-					this.to,
-					this.content,
-				]),
+				effects: updateBlockPostContentRangeEffect.of({
+					from: this.from,
+					to: this.to,
+					content: this.content,
+				}),
+			});
+		};
+
+		const closeEffect = () =>
+			updateBlockPostContentRangeEffect.of({
+				from: 0,
+				to: 0,
+				content: "",
+			});
+
+		el.ondblclick = (ev) => {
+			ev.preventDefault();
+			view.dispatch({
+				effects: [
+					addBlockPostContentRevealedEffect.of(this.from),
+					closeEffect(),
+				],
 			});
 		};
 
@@ -76,13 +94,64 @@ class PostContentWidget extends WidgetType {
 	}
 }
 
+const addBlockPostContentRevealedEffect = StateEffect.define<number>();
+const clearBlockPostContentRevealedEffect = StateEffect.define<undefined>();
+const blockPostContentRevealedField = StateField.define<Set<number>>({
+	create(state) {
+		return new Set();
+	},
+
+	compare(oldState, newState) {
+		return equalSets(oldState, newState);
+	},
+
+	update(oldState, tr) {
+		if (tr.docChanged) {
+			return new Set();
+		}
+
+		let revealed = oldState;
+		for (const effect of tr.effects) {
+			if (effect.is(addBlockPostContentRevealedEffect)) {
+				revealed = new Set(revealed);
+				revealed.add(effect.value);
+			} else if (effect.is(clearBlockPostContentRevealedEffect)) {
+				revealed = new Set();
+			}
+		}
+
+		return revealed;
+	},
+
+	provide(field: StateField<Set<number>>) {
+		return Facet.define<Set<number>, Set<number>>().from(field);
+	},
+});
+
 const blockPostContentDecorationsField = StateField.define<DecorationSet>({
 	create(state) {
 		return Decoration.none;
 	},
-
 	update(oldState, tr) {
-		if (!tr.docChanged && oldState !== Decoration.none) {
+		let changed = tr.docChanged;
+
+		const revealed = tr.state.field(blockPostContentRevealedField);
+
+		if (oldState === Decoration.none) {
+			changed = true;
+		}
+
+		for (const e in tr.effects) {
+			if (
+				tr.effects[e].is(addBlockPostContentRevealedEffect) ||
+				tr.effects[e].is(clearBlockPostContentRevealedEffect)
+			) {
+				changed = true;
+				break;
+			}
+		}
+
+		if (!changed) {
 			return oldState;
 		}
 
@@ -95,6 +164,10 @@ const blockPostContentDecorationsField = StateField.define<DecorationSet>({
 		);
 
 		for (const { from, to, match } of regc) {
+			if (revealed.has(from)) {
+				continue;
+			}
+
 			const content = match[1];
 
 			builder.add(
@@ -109,7 +182,10 @@ const blockPostContentDecorationsField = StateField.define<DecorationSet>({
 		return builder.finish();
 	},
 	provide(field: StateField<DecorationSet>) {
-		return EditorView.decorations.from(field);
+		return EditorView.decorations.compute(
+			[field, blockPostContentRevealedField],
+			(s) => s.field(field)
+		);
 	},
 });
 
@@ -140,19 +216,28 @@ const blockPostContentAtomicPluginSpec: PluginSpec<BlockPostContentAtomicPlugin>
 			}),
 	};
 
-const updateBlockPostContentEffect =
-	StateEffect.define<[number, number, string]>();
+interface BlockPostContentRange {
+	from: number;
+	to: number;
+	content: string;
+}
 
-const blockPostContentRangeField = StateField.define<[number, number, string]>({
+const updateBlockPostContentRangeEffect =
+	StateEffect.define<BlockPostContentRange>();
+
+const blockPostContentRangeField = StateField.define<BlockPostContentRange>({
 	create(state) {
-		return [0, 0, ""];
+		return {
+			from: 0,
+			to: 0,
+			content: "",
+		};
 	},
-
 	update(oldState, tr) {
 		let newState = oldState;
 
 		for (const effect of tr.effects) {
-			if (effect.is(updateBlockPostContentEffect)) {
+			if (effect.is(updateBlockPostContentRangeEffect)) {
 				newState = effect.value;
 			}
 		}
@@ -167,7 +252,7 @@ function getBlockPostContentTooltip(
 ): readonly Tooltip[] {
 	const tooltips: Tooltip[] = [];
 
-	const [from, to, content] = state.field(blockPostContentRangeField);
+	const { from, content } = state.field(blockPostContentRangeField);
 
 	if (!content) {
 		return tooltips;
@@ -175,14 +260,56 @@ function getBlockPostContentTooltip(
 
 	tooltips.push({
 		pos: from,
-		end: to,
 		create(view) {
 			const dom = document.createElement("div");
 			dom.className = cx(CLASSES.tooltip);
+			dom.tabIndex = -1;
 
-			dom.createDiv({ cls: cx(CLASSES.tooltipContainer) }).createDiv({
-				cls: cx(CLASSES.tooltipContent),
-				text: content,
+			const closeEffect = () =>
+				updateBlockPostContentRangeEffect.of({
+					from: 0,
+					to: 0,
+					content: "",
+				});
+
+			dom.createDiv({ cls: cx(CLASSES.tooltipContainer) }, (root) => {
+				// button menu
+				root.createDiv(
+					{ cls: cx(CLASSES?.tooltipButtonMenu) },
+					(el) => {
+						const btn1 = el.createEl("button", {
+							text: "Reveal",
+							cls: cx(
+								CLASSES.tooltipTarget,
+								CLASSES.tooltipButton
+							),
+						});
+
+						btn1.onclick = (ev) => {
+							ev.preventDefault();
+							view.dispatch({
+								effects: [
+									addBlockPostContentRevealedEffect.of(from),
+									closeEffect(),
+								],
+							});
+						};
+					}
+				);
+
+				root.createDiv({ cls: cx(CLASSES.tooltipContent) }, (el) => {
+					const c = content.split("\n");
+					c.forEach((line, i) => {
+						el.createEl("span", {
+							text: line,
+						});
+
+						if (i < c.length - 1) {
+							el.createEl("kbd", { text: "\\n" });
+							el.createEl("br");
+						}
+					});
+				});
 			});
 
 			return { dom };
@@ -212,7 +339,6 @@ export function getPostContentExtenstions(markplace: MarkPlace) {
 
 	const toolTips = tooltips({
 		position: "absolute",
-
 		tooltipSpace: (view) => {
 			const rect = view.dom.getBoundingClientRect();
 
@@ -225,25 +351,60 @@ export function getPostContentExtenstions(markplace: MarkPlace) {
 		},
 	});
 
-	const closeTooltip = (ev: any, view: EditorView) => {
+	const closeTooltip = (ev: Event, view: EditorView) => {
+		if (ev.defaultPrevented) {
+			return;
+		}
+
 		const ts = view.state.field(blockPostContentTooltipField);
 		if (ts.length) {
 			view.dispatch({
-				effects: updateBlockPostContentEffect.of([0, 0, ""]),
+				effects: updateBlockPostContentRangeEffect.of({
+					from: 0,
+					to: 0,
+					content: "",
+				}),
 			});
 		}
 	};
 
 	const toolTipClose = EditorView.domEventHandlers({
-		blur: closeTooltip,
+		blur: (e, view) => {
+			function matches(el: HTMLElement | null, selector: string) {
+				let x = el;
+				while (x && (x as Node) !== document) {
+					if (x.matches(selector)) return true;
+					x = x.parentElement;
+				}
+				e.preventDefault();
+				return false;
+			}
+
+			if (e.relatedTarget) {
+				const t = e.relatedTarget as HTMLElement;
+				const s = `.${CLASSES.tooltipTarget}`;
+				if (matches(t, s)) {
+					return;
+				}
+			}
+
+			closeTooltip(e, view);
+		},
 		scroll: closeTooltip,
-		click: closeTooltip,
+		click: (ev, view) => {
+			closeTooltip(ev, view);
+		},
 		keydown: closeTooltip,
+	});
+	const focusEffect = EditorView.focusChangeEffect.of((s, focusing) => {
+		return clearBlockPostContentRevealedEffect.of(undefined);
 	});
 
 	return [
 		toolTips,
 		toolTipClose,
+		focusEffect,
+		blockPostContentRevealedField,
 		blockPostContentRangeField,
 		blockPostContentDecorationsField,
 		blockPostContentTooltipField,

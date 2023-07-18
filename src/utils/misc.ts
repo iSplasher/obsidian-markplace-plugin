@@ -97,3 +97,8 @@ export function isAlphaNumeric(str: string) {
 	}
 	return true;
 }
+
+export function equalSets(as: Set<any>, bs: Set<any>) {
+	if (as.size !== bs.size) return false;
+	return [...as].every((x) => bs.has(x));
+}

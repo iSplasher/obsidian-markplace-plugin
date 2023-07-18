@@ -87,16 +87,24 @@ export default class MarkPlace {
 
 		const viewState = leaf.getViewState();
 
-		switch (getViewMode(viewState?.state)) {
+		const mode = getViewMode(viewState?.state);
+
+		const view = leaf.view;
+
+		switch (mode) {
 			case "reading":
-				await this.onSwitchToReading(leaf.view);
+				await this.onSwitchToReading(view);
 				break;
 			case "live":
-				await this.onSwitchToLive(leaf.view);
+				await this.onSwitchToLive(view);
 				break;
 			case "source":
-				await this.onSwitchToSource(leaf.view);
+				await this.onSwitchToSource(view);
 				break;
+		}
+
+		if (constant?.events && mode && view.getViewType() === "markdown") {
+			constant.events.emit("layoutChange", mode, view as MarkdownView);
 		}
 	}
 
