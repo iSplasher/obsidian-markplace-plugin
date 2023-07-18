@@ -1,7 +1,7 @@
 {
 	"id": "markplace",
 	"name": "MarkPlace",
-	"version": "0.2.0",
+	"version": "0.3.0",
 	"minAppVersion": "0.15.0",
 	"description": "MarkPlace is a templating plugin that allows you to render in place, directly inside your notes.",
 	"author": "Twiddly",
