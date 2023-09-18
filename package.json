@@ -10,10 +10,10 @@
 		"test": "jest"
 	},
 	"keywords": [],
-	"author": "Twiddly",
+	"author": "iSplasher",
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/isplasher/obsidian-markplace-plugin"
+		"url": "https://github.com/iSplasher/obsidian-markplace-plugin"
 	},
 	"license": "MIT",
 	"devDependencies": {
