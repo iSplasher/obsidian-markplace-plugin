@@ -180,7 +180,7 @@ export default class MarkPlaceSettingTab extends PluginSettingTab {
 			.setDesc("Enables debug logging and extra error information.")
 			.addToggle((toggle) => {
 				toggle
-					.setValue(this.plugin.settings.liveRendering)
+					.setValue(this.plugin.settings.debug)
 					.onChange(
 						async (value: MarkPlacePluginSettings["debug"]) => {
 							await this.plugin.saveSettings({

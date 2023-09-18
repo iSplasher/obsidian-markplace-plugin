@@ -4,8 +4,8 @@
 	"version": "0.3.0",
 	"minAppVersion": "0.15.0",
 	"description": "MarkPlace is a templating plugin that allows you to render in place, directly inside your notes.",
-	"author": "Twiddly",
-	"authorUrl": "https://github.com/twiddli/obsidian-markplace-plugin",
-	"fundingUrl": "https://ko-fi.com/twiddly",
+	"author": "iSplasher",
+	"authorUrl": "https://github.com/iSplasher/obsidian-markplace-plugin",
+	"fundingUrl": "https://ko-fi.com/isplasher",
 	"isDesktopOnly": false
 }
