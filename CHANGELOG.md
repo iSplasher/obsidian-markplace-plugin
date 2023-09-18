@@ -2,19 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-#### [0.3.0] - 2023-07-18
-
-##### Features ✨
-
-- Better widget;
-
-#### [0.2.0] - 2023-07-17
-
-##### Features ✨
-
-- Add editor decorations;
-
-#### [0.1.0] - 2023-07-15
+#### [0.3.0] - 2023-09-18
 
 ##### Bug Fixes 🐞
 
@@ -38,6 +26,8 @@ All notable changes to this project will be documented in this file.
 - Generator and builder;
 - Dom builder;
 - Syntax highlighting and colors;
+- Add editor decorations;
+- Better widget;
 
 The entire changelog is found at `CHANGELOG.md`.
 
